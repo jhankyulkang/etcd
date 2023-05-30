@@ -9,7 +9,7 @@ SSH_KEY_PATH = '~/.ssh/id_rsa'
 REMOTE_ETCD_DIR = '~/etcd'
 REMOTE_SERVER_DIR = REMOTE_ETCD_DIR + '/server'
 
-LOCAL_ETCD_DIR = '~/go/src/go.etcd.io/etcd'
+LOCAL_ETCD_DIR = '~/go/src/etcd'
 LOCAL_SERVER_DIR = LOCAL_ETCD_DIR + '/server'
 
 HTTP_SCHEME = 'http://'
@@ -166,7 +166,7 @@ def run_cmd(ip, cmd):
     if ip == LOCAL_HOST:
         run(cmd, asynchronous=True)
     else:
-        with Connection(host=ip, connect_kwargs={'password': PASSWORD}) as conn:
+        with Connection(user = "jokang", host=ip, connect_kwargs={'password': PASSWORD}) as conn:
             try:
                 conn.run(cmd, asynchronous=True)
             except UnexpectedExit:

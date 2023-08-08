@@ -1,0 +1,11 @@
+data-dir: data.etcd-1
+name: "1"
+initial-advertise-peer-urls: http://127.0.0.1:1380
+listen-peer-urls: http://127.0.0.1:1380
+advertise-client-urls: http://127.0.0.1:1379
+listen-client-urls: http://127.0.0.1:1379
+initial-cluster: 1=http://127.0.0.1:1380,2=http://127.0.0.1:2380
+pre-vote: false
+initial-cluster-state: new
+initial-cluster-token: token
+log-level: debug

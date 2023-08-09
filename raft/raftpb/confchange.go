@@ -54,6 +54,7 @@ func (c ConfChange) AsV2() ConfChangeV2 {
 		Context:   c.Context,
 		ConfTerm:  c.ConfTerm,
 		ConfIndex: c.ConfIndex,
+		Quorum:    c.Quorum,
 	}
 }
 

@@ -130,7 +130,7 @@ func (cp *clusterProxy) MemberAdd(ctx context.Context, r *pb.MemberAddRequest) (
 }
 
 func (cp *clusterProxy) memberAdd(ctx context.Context, peerURLs []string) (*pb.MemberAddResponse, error) {
-	mresp, err := cp.clus.MemberAdd(ctx, peerURLs)
+	mresp, err := cp.clus.MemberAdd(ctx, peerURLs, 0)
 	if err != nil {
 		return nil, err
 	}
@@ -139,7 +139,7 @@ func (cp *clusterProxy) memberAdd(ctx context.Context, peerURLs []string) (*pb.M
 }
 
 func (cp *clusterProxy) memberAddAsLearner(ctx context.Context, peerURLs []string) (*pb.MemberAddResponse, error) {
-	mresp, err := cp.clus.MemberAddAsLearner(ctx, peerURLs)
+	mresp, err := cp.clus.MemberAddAsLearner(ctx, peerURLs, 0)
 	if err != nil {
 		return nil, err
 	}

@@ -328,6 +328,7 @@ func (c Changer) apply(cfg *tracker.Config, prs tracker.ProgressMap, ccs ...pb.C
 		switch cc.Type {
 		case pb.ConfChangeAddNode:
 			c.makeVoter(cfg, prs, cc.NodeID)
+			cfg.Quorum = c.Quorum //added by Joshua to support quorom updates
 		case pb.ConfChangeAddLearnerNode:
 			c.makeLearner(cfg, prs, cc.NodeID)
 		case pb.ConfChangeRemoveNode:

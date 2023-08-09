@@ -62,9 +62,9 @@ func (s *v2v3Server) Leader() types.ID {
 	return types.ID(resp.Leader)
 }
 
-func (s *v2v3Server) AddMember(ctx context.Context, memb membership.Member) ([]*membership.Member, error) {
+func (s *v2v3Server) AddMember(ctx context.Context, memb membership.Member, quourm uint64) ([]*membership.Member, error) {
 	// adding member as learner is not supported by V2 Server.
-	resp, err := s.c.MemberAdd(ctx, memb.PeerURLs)
+	resp, err := s.c.MemberAdd(ctx, memb.PeerURLs, quourm)
 	if err != nil {
 		return nil, err
 	}

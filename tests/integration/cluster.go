@@ -1567,7 +1567,8 @@ func (c *ClusterV3) AddAndLaunchLearnerMember(t testutil.TB) {
 	peerURLs := []string{scheme + "://" + m.PeerListeners[0].Addr().String()}
 
 	cli := c.Client(0)
-	_, err := cli.MemberAddAsLearner(context.Background(), peerURLs)
+
+	_, err := cli.MemberAddAsLearner(context.Background(), peerURLs, 0)
 	if err != nil {
 		t.Fatalf("failed to add learner member %v", err)
 	}

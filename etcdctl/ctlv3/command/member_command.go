@@ -33,6 +33,7 @@ var (
 	leave          bool
 	add            string
 	remove         string
+	quroum         int
 )
 
 // NewMemberCommand returns the cobra command for "member".
@@ -64,8 +65,11 @@ func NewMemberAddCommand() *cobra.Command {
 	}
 
 	cc.Flags().StringVar(&memberPeerURLs, "peer-urls", "", "comma separated peer URLs for the new member.")
+	//cc.Flags().StringSliceVar(&addMemberPeerURLs, "peer-urls", nil, "comma separated peer URLs for the new member.")
+	//todo: not mapped per member!
 	cc.Flags().BoolVar(&isLearner, "learner", false, "indicates if the new member is raft learner")
 
+	cc.Flags().IntVar(&quroum, "quorum", 0, "manually set dynamic quorum")
 	return cc
 }
 
@@ -177,79 +181,85 @@ func memberAddCommandFunc(cmd *cobra.Command, args []string) {
 	if len(args) < 1 {
 		cobrautl.ExitWithError(cobrautl.ExitBadArgs, errors.New("member name not provided"))
 	}
-	if len(args) > 1 {
-		ev := "too many arguments"
-		for _, s := range args {
-			if strings.HasPrefix(strings.ToLower(s), "http") {
-				ev += fmt.Sprintf(`, did you mean --peer-urls=%s`, s)
-			}
-		}
-		cobrautl.ExitWithError(cobrautl.ExitBadArgs, errors.New(ev))
-	}
-	newMemberName := args[0]
-
 	if len(memberPeerURLs) == 0 {
 		cobrautl.ExitWithError(cobrautl.ExitBadArgs, errors.New("member peer urls not provided"))
 	}
-
-	urls := strings.Split(memberPeerURLs, ",")
-	ctx, cancel := commandCtx(cmd)
-	cli := mustClientFromCmd(cmd)
 	var (
 		resp *clientv3.MemberAddResponse
 		err  error
 	)
-	if isLearner {
-		resp, err = cli.MemberAddAsLearner(ctx, urls)
-	} else {
-		resp, err = cli.MemberAdd(ctx, urls)
-	}
-	cancel()
-	if err != nil {
-		cobrautl.ExitWithError(cobrautl.ExitError, err)
-	}
-	newID := resp.Member.ID
+	peerURLs := strings.Split(memberPeerURLs, "+++")
+	//fmt.Print(peerURLs)
+	//conf := []string{}
+	for i, s := range args {
+		if strings.HasPrefix(strings.ToLower(s), "http") {
+			ev := fmt.Sprintf(`, did you mean --peer-urls=%s`, s)
+			cobrautl.ExitWithError(cobrautl.ExitBadArgs, errors.New(ev))
+		}
 
-	display.MemberAdd(*resp)
+		memberPeerURLs := strings.Split(peerURLs[i], ",")
 
-	if _, ok := (display).(*simplePrinter); ok {
-		conf := []string{}
-		for _, memb := range resp.Members {
-			for _, u := range memb.PeerURLs {
-				n := memb.Name
-				if memb.ID == newID {
-					n = newMemberName
+		//newMemberName := args[0]
+
+		ctx, cancel := commandCtx(cmd)
+		cli := mustClientFromCmd(cmd)
+		//q := etcdserverpb.Quorum{Value: quroum} //suggestion fix: added keys deleted zero value
+
+		if isLearner {
+			resp, err = cli.MemberAddAsLearner(ctx, memberPeerURLs, uint64(quroum))
+		} else {
+			//fmt.Print(memberPeerURLs)
+			fmt.Print(quroum)
+			resp, err = cli.MemberAdd(ctx, memberPeerURLs, uint64(quroum))
+		}
+		cancel()
+		if resp != nil && err != nil {
+			//cobrautl.ExitWithError(cobrautl.ExitError, err)
+		}
+
+		/*newID := resp.Member.ID
+		display.MemberAdd(*resp)
+		if _, ok := (display).(*simplePrinter); ok {
+
+			for _, memb := range resp.Members {
+				for _, u := range memb.PeerURLs {
+					n := memb.Name
+					if memb.ID == newID {
+						n = s
+					}
+					conf = append(conf, fmt.Sprintf("%s=%s", n, u))
 				}
-				conf = append(conf, fmt.Sprintf("%s=%s", n, u))
 			}
 		}
 
 		fmt.Print("\n")
-		fmt.Printf("ETCD_NAME=%q\n", newMemberName)
+		//fmt.Printf("ETCD_NAME=%q\n", newMemberName)
 		fmt.Printf("ETCD_INITIAL_CLUSTER=%q\n", strings.Join(conf, ","))
 		fmt.Printf("ETCD_INITIAL_ADVERTISE_PEER_URLS=%q\n", memberPeerURLs)
 		fmt.Printf("ETCD_INITIAL_CLUSTER_STATE=\"existing\"\n")
+		//}*/
 	}
 }
 
 // memberRemoveCommandFunc executes the "member remove" command.
 func memberRemoveCommandFunc(cmd *cobra.Command, args []string) {
-	if len(args) != 1 {
+	if len(args) < 1 {
 		cobrautl.ExitWithError(cobrautl.ExitBadArgs, fmt.Errorf("member ID is not provided"))
 	}
+	for i := range args {
+		id, err := strconv.ParseUint(args[i], 16, 64)
+		if err != nil {
+			cobrautl.ExitWithError(cobrautl.ExitBadArgs, fmt.Errorf("bad member ID arg (%v), expecting ID in Hex", err))
+		}
 
-	id, err := strconv.ParseUint(args[0], 16, 64)
-	if err != nil {
-		cobrautl.ExitWithError(cobrautl.ExitBadArgs, fmt.Errorf("bad member ID arg (%v), expecting ID in Hex", err))
+		ctx, cancel := commandCtx(cmd)
+		resp, err := mustClientFromCmd(cmd).MemberRemove(ctx, id)
+		cancel()
+		/*if err != nil {
+			cobrautl.ExitWithError(cobrautl.ExitError, err)
+		}*/
+		display.MemberRemove(id, *resp)
 	}
-
-	ctx, cancel := commandCtx(cmd)
-	resp, err := mustClientFromCmd(cmd).MemberRemove(ctx, id)
-	cancel()
-	if err != nil {
-		cobrautl.ExitWithError(cobrautl.ExitError, err)
-	}
-	display.MemberRemove(id, *resp)
 }
 
 // memberUpdateCommandFunc executes the "member update" command.
@@ -379,7 +389,7 @@ func memberMergeCommandFunc(cmd *cobra.Command, args []string) {
 
 func memberJointCommandFunc(cmd *cobra.Command, args []string) {
 	if len(add) == 0 && len(remove) == 0 {
-		cobrautl.ExitWithError(cobrautl.ExitBadArgs, fmt.Errorf("not members provided"))
+		cobrautl.ExitWithError(cobrautl.ExitBadArgs, fmt.Errorf("no members provided"))
 	}
 
 	addUrls := make([]string, 0)

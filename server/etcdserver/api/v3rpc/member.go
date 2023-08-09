@@ -18,7 +18,7 @@ import (
 	"context"
 	"time"
 
-	pb "go.etcd.io/etcd/api/v3/etcdserverpb"
+	"go.etcd.io/etcd/api/v3/etcdserverpb"
 	"go.etcd.io/etcd/api/v3/v3rpc/rpctypes"
 	"go.etcd.io/etcd/client/pkg/v3/types"
 	"go.etcd.io/etcd/server/v3/etcdserver"
@@ -38,7 +38,7 @@ func NewClusterServer(s *etcdserver.EtcdServer) *ClusterServer {
 	}
 }
 
-func (cs *ClusterServer) MemberAdd(ctx context.Context, r *pb.MemberAddRequest) (*pb.MemberAddResponse, error) {
+func (cs *ClusterServer) MemberAdd(ctx context.Context, r *etcdserverpb.MemberAddRequest) (*etcdserverpb.MemberAddResponse, error) {
 	urls, err := types.NewURLs(r.PeerURLs)
 	if err != nil {
 		return nil, rpctypes.ErrGRPCMemberBadURLs
@@ -51,31 +51,34 @@ func (cs *ClusterServer) MemberAdd(ctx context.Context, r *pb.MemberAddRequest) 
 	} else {
 		m = membership.NewMember("", urls, "", &now)
 	}
-	membs, merr := cs.server.AddMember(ctx, *m)
+
+	membs, merr := cs.server.AddMember(ctx, *m, r.Quorum)
 	if merr != nil {
 		return nil, togRPCError(merr)
 	}
 
-	return &pb.MemberAddResponse{
+	return &etcdserverpb.MemberAddResponse{
 		Header: cs.header(),
-		Member: &pb.Member{
+		Member: &etcdserverpb.Member{
 			ID:        uint64(m.ID),
 			PeerURLs:  m.PeerURLs,
 			IsLearner: m.IsLearner,
 		},
 		Members: membersToProtoMembers(membs),
+		//add quorum
+
 	}, nil
 }
 
-func (cs *ClusterServer) MemberRemove(ctx context.Context, r *pb.MemberRemoveRequest) (*pb.MemberRemoveResponse, error) {
+func (cs *ClusterServer) MemberRemove(ctx context.Context, r *etcdserverpb.MemberRemoveRequest) (*etcdserverpb.MemberRemoveResponse, error) {
 	membs, err := cs.server.RemoveMember(ctx, r.ID)
 	if err != nil {
 		return nil, togRPCError(err)
 	}
-	return &pb.MemberRemoveResponse{Header: cs.header(), Members: membersToProtoMembers(membs)}, nil
+	return &etcdserverpb.MemberRemoveResponse{Header: cs.header(), Members: membersToProtoMembers(membs)}, nil
 }
 
-func (cs *ClusterServer) MemberUpdate(ctx context.Context, r *pb.MemberUpdateRequest) (*pb.MemberUpdateResponse, error) {
+func (cs *ClusterServer) MemberUpdate(ctx context.Context, r *etcdserverpb.MemberUpdateRequest) (*etcdserverpb.MemberUpdateResponse, error) {
 	m := membership.Member{
 		ID:             types.ID(r.ID),
 		RaftAttributes: membership.RaftAttributes{PeerURLs: r.PeerURLs},
@@ -84,44 +87,44 @@ func (cs *ClusterServer) MemberUpdate(ctx context.Context, r *pb.MemberUpdateReq
 	if err != nil {
 		return nil, togRPCError(err)
 	}
-	return &pb.MemberUpdateResponse{Header: cs.header(), Members: membersToProtoMembers(membs)}, nil
+	return &etcdserverpb.MemberUpdateResponse{Header: cs.header(), Members: membersToProtoMembers(membs)}, nil
 }
 
-func (cs *ClusterServer) MemberList(ctx context.Context, r *pb.MemberListRequest) (*pb.MemberListResponse, error) {
+func (cs *ClusterServer) MemberList(ctx context.Context, r *etcdserverpb.MemberListRequest) (*etcdserverpb.MemberListResponse, error) {
 	if r.Linearizable {
 		if err := cs.server.LinearizableReadNotify(ctx); err != nil {
 			return nil, togRPCError(err)
 		}
 	}
 	membs := membersToProtoMembers(cs.cluster.Members())
-	return &pb.MemberListResponse{Header: cs.header(), Members: membs}, nil
+	return &etcdserverpb.MemberListResponse{Header: cs.header(), Members: membs}, nil
 }
 
-func (cs *ClusterServer) MemberPromote(ctx context.Context, r *pb.MemberPromoteRequest) (*pb.MemberPromoteResponse, error) {
+func (cs *ClusterServer) MemberPromote(ctx context.Context, r *etcdserverpb.MemberPromoteRequest) (*etcdserverpb.MemberPromoteResponse, error) {
 	membs, err := cs.server.PromoteMember(ctx, r.ID)
 	if err != nil {
 		return nil, togRPCError(err)
 	}
-	return &pb.MemberPromoteResponse{Header: cs.header(), Members: membersToProtoMembers(membs)}, nil
+	return &etcdserverpb.MemberPromoteResponse{Header: cs.header(), Members: membersToProtoMembers(membs)}, nil
 }
 
-func (cs *ClusterServer) MemberSplit(ctx context.Context, r *pb.MemberSplitRequest) (*pb.MemberSplitResponse, error) {
+func (cs *ClusterServer) MemberSplit(ctx context.Context, r *etcdserverpb.MemberSplitRequest) (*etcdserverpb.MemberSplitResponse, error) {
 	membs, err := cs.server.SplitMember(ctx, r.Clusters, r.ExplicitLeave, r.Leave)
 	if err != nil {
 		return nil, err
 	}
-	return &pb.MemberSplitResponse{Header: cs.header(), Members: membersToProtoNonPointerMembers(membs)}, nil
+	return &etcdserverpb.MemberSplitResponse{Header: cs.header(), Members: membersToProtoNonPointerMembers(membs)}, nil
 }
 
-func (cs *ClusterServer) MemberMerge(ctx context.Context, r *pb.MemberMergeRequest) (*pb.MemberMergeResponse, error) {
+func (cs *ClusterServer) MemberMerge(ctx context.Context, r *etcdserverpb.MemberMergeRequest) (*etcdserverpb.MemberMergeResponse, error) {
 	membs, err := cs.server.MergeMember(ctx, *r)
 	if err != nil {
 		return nil, err
 	}
-	return &pb.MemberMergeResponse{Header: cs.header(), Members: membersToProtoNonPointerMembers(membs)}, nil
+	return &etcdserverpb.MemberMergeResponse{Header: cs.header(), Members: membersToProtoNonPointerMembers(membs)}, nil
 }
 
-func (cs *ClusterServer) MemberJoint(ctx context.Context, r *pb.MemberJointRequest) (*pb.MemberJointResponse, error) {
+func (cs *ClusterServer) MemberJoint(ctx context.Context, r *etcdserverpb.MemberJointRequest) (*etcdserverpb.MemberJointResponse, error) {
 	addMembs := make([]membership.Member, 0)
 	for _, url := range r.AddPeersUrl {
 		urls, err := types.NewURLs([]string{url})
@@ -137,17 +140,17 @@ func (cs *ClusterServer) MemberJoint(ctx context.Context, r *pb.MemberJointReque
 	if err != nil {
 		return nil, err
 	}
-	return &pb.MemberJointResponse{Header: cs.header(), Members: membersToProtoMembers(membs)}, nil
+	return &etcdserverpb.MemberJointResponse{Header: cs.header(), Members: membersToProtoMembers(membs)}, nil
 }
 
-func (cs *ClusterServer) header() *pb.ResponseHeader {
-	return &pb.ResponseHeader{ClusterId: uint64(cs.cluster.ID()), MemberId: uint64(cs.server.ID()), RaftTerm: cs.server.Term()}
+func (cs *ClusterServer) header() *etcdserverpb.ResponseHeader {
+	return &etcdserverpb.ResponseHeader{ClusterId: uint64(cs.cluster.ID()), MemberId: uint64(cs.server.ID()), RaftTerm: cs.server.Term()}
 }
 
-func membersToProtoMembers(membs []*membership.Member) []*pb.Member {
-	protoMembs := make([]*pb.Member, len(membs))
+func membersToProtoMembers(membs []*membership.Member) []*etcdserverpb.Member {
+	protoMembs := make([]*etcdserverpb.Member, len(membs))
 	for i := range membs {
-		protoMembs[i] = &pb.Member{
+		protoMembs[i] = &etcdserverpb.Member{
 			Name:       membs[i].Name,
 			ID:         uint64(membs[i].ID),
 			PeerURLs:   membs[i].PeerURLs,
@@ -158,10 +161,10 @@ func membersToProtoMembers(membs []*membership.Member) []*pb.Member {
 	return protoMembs
 }
 
-func membersToProtoNonPointerMembers(membs []membership.Member) []pb.Member {
-	protoMembs := make([]pb.Member, len(membs))
+func membersToProtoNonPointerMembers(membs []membership.Member) []etcdserverpb.Member {
+	protoMembs := make([]etcdserverpb.Member, len(membs))
 	for i := range membs {
-		protoMembs[i] = pb.Member{
+		protoMembs[i] = etcdserverpb.Member{
 			Name:       membs[i].Name,
 			ID:         uint64(membs[i].ID),
 			PeerURLs:   membs[i].PeerURLs,

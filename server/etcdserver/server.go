@@ -164,7 +164,7 @@ type Server interface {
 	// AddMember attempts to add a member into the cluster. It will return
 	// ErrIDRemoved if member ID is removed from the cluster, or return
 	// ErrIDExists if member ID exists in the cluster.
-	AddMember(ctx context.Context, memb membership.Member) ([]*membership.Member, error)
+	AddMember(ctx context.Context, memb membership.Member, quorum uint64) ([]*membership.Member, error)
 	// RemoveMember attempts to remove a member from the cluster. It will
 	// return ErrIDRemoved if member ID is removed from the cluster, or return
 	// ErrIDNotFound if member ID is not in the cluster.
@@ -1474,7 +1474,7 @@ func (s *EtcdServer) applyConfChangeEnts(apply *apply) {
 	for _, ent := range apply.newConfChangeEnts {
 		switch ent.Type {
 		case raftpb.EntryConfChange:
-			s.applyConfChangeV1(ent)
+			s.applyConfChangeV1(ent, false)
 		case raftpb.EntryConfChangeV2:
 			s.applyConfChangeV2(ent)
 		default:
@@ -1489,7 +1489,7 @@ func confChangeEntryIdentifier(entry raftpb.Entry) string {
 		strconv.FormatUint(entry.Index, 10)
 }
 
-func (s *EtcdServer) applyConfChangeV1(entry raftpb.Entry) (shouldStop bool) {
+func (s *EtcdServer) applyConfChangeV1(entry raftpb.Entry, unmarshallAsV2 bool) (shouldStop bool) {
 	var cc raftpb.ConfChange
 	pbutil.MustUnmarshal(&cc, entry.Data)
 	cc.ConfTerm = entry.Term
@@ -1565,12 +1565,14 @@ func (s *EtcdServer) applyConfChangeV2(entry raftpb.Entry) (shouldStop bool) {
 	cc.ConfTerm = entry.Term
 	cc.ConfIndex = entry.Index
 
-	if cc.Transition != raftpb.ConfChangeTransitionJointImplicit &&
+	if cc.Transition != raftpb.ConfChangeTransitionAuto &&
+		cc.Transition != raftpb.ConfChangeTransitionJointImplicit &&
 		cc.Transition != raftpb.ConfChangeTransitionJointLeave &&
 		cc.Transition != raftpb.ConfChangeTransitionSplitImplicit &&
 		cc.Transition != raftpb.ConfChangeTransitionSplitExplicit &&
 		cc.Transition != raftpb.ConfChangeTransitionSplitLeave &&
-		cc.Transition != raftpb.ConfChangeTransitionMergeLeave {
+		cc.Transition != raftpb.ConfChangeTransitionMergeLeave &&
+		cc.Transition != raftpb.ConfChangeTransitionQuorum {
 		s.lg.Warn("unsupported conf change v1 type", zap.Stringer("type", entry.Type))
 		return
 	}
@@ -1625,9 +1627,9 @@ func (s *EtcdServer) applyConfChangeV2(entry raftpb.Entry) (shouldStop bool) {
 		if len(confState.VotersOutgoing) != 0 {
 			panic("Should already left joint consensus! ConfState: " + confState.String())
 		}
-	case raftpb.ConfChangeTransitionJointImplicit:
+	case raftpb.ConfChangeTransitionJointImplicit, raftpb.ConfChangeTransitionQuorum:
 		if len(confState.VotersOutgoing) == 0 {
-			panic("Not in joint consensus! ConfState: " + confState.String())
+			//panic("Not in joint consensus! ConfState: " + confState.String())
 		}
 
 		s.Logger().Debug("apply enter joint conf change")
@@ -1635,7 +1637,10 @@ func (s *EtcdServer) applyConfChangeV2(entry raftpb.Entry) (shouldStop bool) {
 			if change.Type == raftpb.ConfChangeAddNode {
 				var mem membership.Member
 				if err := gob.NewDecoder(bytes.NewBuffer(change.Context)).Decode(&mem); err != nil {
-					s.Logger().Panic("failed to unmarshal member", zap.Error(err))
+					if err = json.Unmarshal(change.Context, &mem); err != nil {
+						s.Logger().Panic("failed to unmarshal member", zap.Error(err))
+					}
+					//s.Logger().Panic("failed to unmarshal member", zap.Error(err))
 				}
 
 				s.cluster.AddMember(&membership.Member{
@@ -1651,10 +1656,12 @@ func (s *EtcdServer) applyConfChangeV2(entry raftpb.Entry) (shouldStop bool) {
 				}, membership.ApplyBoth)
 
 				s.r.transport.AddPeer(mem.ID, mem.PeerURLs)
+				s.Logger().Debug("added")
 			}
 		}
-
-		triggerId, err := strconv.ParseUint(string(cc.Context), 10, 64)
+		re := regexp.MustCompile("\\d+")
+		ID := re.FindAllString("abc123def987asdf", -1)
+		triggerId, err := strconv.ParseUint(ID[0], 10, 64)
 		if err != nil {
 			s.lg.Panic("parse conf change id failed", zap.Error(err))
 		}
@@ -1662,7 +1669,7 @@ func (s *EtcdServer) applyConfChangeV2(entry raftpb.Entry) (shouldStop bool) {
 			s.w.Trigger(triggerId, &confChangeResponse{s.cluster.Members(), nil})
 		}
 	}
-
+	s.Logger().Debug("end of ApplyConfV2")
 	s.appliedConfEntry[ccid] = struct{}{}
 	return
 }
@@ -1843,7 +1850,7 @@ func (s *EtcdServer) checkMembershipOperationPermission(ctx context.Context) err
 	return s.AuthStore().IsAdminPermitted(authInfo)
 }
 
-func (s *EtcdServer) AddMember(ctx context.Context, memb membership.Member) ([]*membership.Member, error) {
+func (s *EtcdServer) AddMember(ctx context.Context, memb membership.Member, quorum uint64) ([]*membership.Member, error) {
 	if err := s.checkMembershipOperationPermission(ctx); err != nil {
 		return nil, err
 	}
@@ -1855,18 +1862,24 @@ func (s *EtcdServer) AddMember(ctx context.Context, memb membership.Member) ([]*
 	}
 
 	// by default StrictReconfigCheck is enabled; reject new members if unhealthy.
-	if err := s.mayAddMember(memb); err != nil {
-		return nil, err
-	}
+	//if err := s.mayAddMember(memb); err != nil {
+	//	return nil, err
+	//}
 
-	cc := raftpb.ConfChange{
-		Type:    raftpb.ConfChangeAddNode,
-		NodeID:  uint64(memb.ID),
+	cc := raftpb.ConfChangeV2{
+		Transition: raftpb.ConfChangeTransitionQuorum,
+		Changes: []raftpb.ConfChangeSingle{{
+			raftpb.ConfChangeAddNode,
+			uint64(memb.ID),
+			b}},
 		Context: b,
+		Quorum:  quorum,
 	}
-
+	s.lg.Debug("quorum processed", zap.Uint64("quorum value", quorum))
 	if memb.IsLearner {
-		cc.Type = raftpb.ConfChangeAddLearnerNode
+		cc.Changes = []raftpb.ConfChangeSingle{{
+			Type: raftpb.ConfChangeAddLearnerNode,
+		}}
 	}
 
 	return s.configure(ctx, cc)
@@ -1908,13 +1921,15 @@ func (s *EtcdServer) RemoveMember(ctx context.Context, id uint64) ([]*membership
 	}
 
 	// by default StrictReconfigCheck is enabled; reject removal if leads to quorum loss
-	if err := s.mayRemoveMember(types.ID(id)); err != nil {
-		return nil, err
-	}
+	//if err := s.mayRemoveMember(types.ID(id)); err != nil {
+	//return nil, err
+	//}
 
-	cc := raftpb.ConfChange{
-		Type:   raftpb.ConfChangeRemoveNode,
-		NodeID: id,
+	cc := raftpb.ConfChangeV2{
+		Changes: []raftpb.ConfChangeSingle{{
+			Type:   raftpb.ConfChangeRemoveNode,
+			NodeID: id,
+		}},
 	}
 	return s.configure(ctx, cc)
 }
@@ -2134,10 +2149,11 @@ func (s *EtcdServer) promoteMember(ctx context.Context, id uint64) ([]*membershi
 		return nil, err
 	}
 
-	cc := raftpb.ConfChange{
-		Type:    raftpb.ConfChangeAddNode,
-		NodeID:  id,
-		Context: b,
+	cc := raftpb.ConfChangeV2{
+		Changes: []raftpb.ConfChangeSingle{{
+			Type:    raftpb.ConfChangeAddNode,
+			NodeID:  id,
+			Context: b}},
 	}
 
 	return s.configure(ctx, cc)
@@ -2253,10 +2269,11 @@ func (s *EtcdServer) UpdateMember(ctx context.Context, memb membership.Member) (
 	if err := s.checkMembershipOperationPermission(ctx); err != nil {
 		return nil, err
 	}
-	cc := raftpb.ConfChange{
-		Type:    raftpb.ConfChangeUpdateNode,
-		NodeID:  uint64(memb.ID),
-		Context: b,
+	cc := raftpb.ConfChangeV2{
+		Changes: []raftpb.ConfChangeSingle{{
+			Type:    raftpb.ConfChangeUpdateNode,
+			NodeID:  uint64(memb.ID),
+			Context: b}},
 	}
 	return s.configure(ctx, cc)
 }
@@ -2338,13 +2355,14 @@ type confChangeResponse struct {
 // configure sends a configuration change through consensus and
 // then waits for it to be applied to the server. It
 // will block until the change is performed or there is an error.
-func (s *EtcdServer) configure(ctx context.Context, cc raftpb.ConfChange) ([]*membership.Member, error) {
+func (s *EtcdServer) configure(ctx context.Context, CC raftpb.ConfChangeV2) ([]*membership.Member, error) {
 	lg := s.Logger()
+	var cc raftpb.ConfChange
 	cc.ID = s.reqIDGen.Next()
 	ch := s.w.Register(cc.ID)
 
 	start := time.Now()
-	if err := s.r.ProposeConfChange(ctx, cc); err != nil {
+	if err := s.r.ProposeConfChange(ctx, CC); err != nil {
 		s.w.Trigger(cc.ID, nil)
 		return nil, err
 	}
@@ -2358,8 +2376,8 @@ func (s *EtcdServer) configure(ctx context.Context, cc raftpb.ConfChange) ([]*me
 		lg.Info(
 			"applied a configuration change through raft",
 			zap.String("local-member-id", s.ID().String()),
-			zap.String("raft-conf-change", cc.Type.String()),
-			zap.String("raft-conf-change-node-id", types.ID(cc.NodeID).String()),
+			zap.String("raft-conf-change", raftpb.ConfChangeType.Enum(*&CC.Changes[0].Type).String()),
+			zap.String("raft-conf-change-node-id", types.ID(*&CC.Changes[0].NodeID).String()),
 		)
 		return resp.membs, resp.err
 
@@ -2576,7 +2594,7 @@ func (s *EtcdServer) apply(
 				s.consistIndex.SetConsistentApplyingIndex(e.Index, e.Term)
 			}
 
-			shouldStop = shouldStop || s.applyConfChangeV1(e)
+			shouldStop = shouldStop || s.applyConfChangeV1(e, false)
 			s.setAppliedIndex(e.Index)
 			s.setTerm(e.Term)
 

@@ -25,9 +25,9 @@ import (
 )
 
 func main() {
-	cluster := flag.String("cluster", "1=http://127.0.0.1:9021", "comma separated cluster peers, each in format id=url")
-	id := flag.Int("id", 1, "node ID")
-	kvport := flag.Int("port", 9121, "key-value server port")
+	cluster := flag.String("cluster", "6=http://127.0.0.1:6380", "comma separated cluster peers, each in format id=url")
+	id := flag.Int("id", 6, "node ID")
+	kvport := flag.Int("port", 6380, "key-value server port")
 	join := flag.Bool("join", false, "join an existing cluster")
 	flag.Parse()
 

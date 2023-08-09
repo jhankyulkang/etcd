@@ -231,7 +231,7 @@ func (h *membersHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		}
 		now := h.clock.Now()
 		m := membership.NewMember("", req.PeerURLs, "", &now)
-		_, err := h.server.AddMember(ctx, *m)
+		_, err := h.server.AddMember(ctx, *m, 0)
 		switch {
 		case err == membership.ErrIDExists || err == membership.ErrPeerURLexists:
 			writeError(h.lg, w, r, httptypes.NewHTTPError(http.StatusConflict, err.Error()))

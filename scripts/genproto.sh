@@ -12,10 +12,10 @@ fi
 
 source ./scripts/test_lib.sh
 
-if [[ $(protoc --version | cut -f2 -d' ') != "3.14.0" ]]; then
-  echo "could not find protoc 3.14.0, is it installed + in PATH?"
-  exit 255
-fi
+#if [[ $(protoc --version | cut -f2 -d' ') != "3.14.0" ]]; then
+#  echo "could not find protoc 3.14.0, is it installed + in PATH?"
+#  exit 255
+#fi
 
 GOFAST_BIN=$(tool_get_bin github.com/gogo/protobuf/protoc-gen-gofast)
 GRPC_GATEWAY_BIN=$(tool_get_bin github.com/grpc-ecosystem/grpc-gateway/protoc-gen-grpc-gateway)
@@ -50,67 +50,67 @@ for dir in ${DIRS}; do
     run goimports -w ./*.pb.go
   run popd
 done
-
-log_callout -e "\\nRunning swagger & grpc_gateway proto generation..."
-
-# remove old swagger files so it's obvious whether the files fail to generate
-rm -rf Documentation/dev-guide/apispec/swagger/*json
-for pb in api/etcdserverpb/rpc server/etcdserver/api/v3lock/v3lockpb/v3lock server/etcdserver/api/v3election/v3electionpb/v3election; do
-  log_callout "grpc & swagger for: ${pb}.proto"
-  run protoc -I. \
-      -I"${GRPC_GATEWAY_ROOT}"/third_party/googleapis \
-      -I"${GOGOPROTO_PATH}" \
-      -I"${ETCD_ROOT_DIR}/.." \
-      --grpc-gateway_out=logtostderr=true,paths=source_relative:. \
-      --swagger_out=logtostderr=true:./Documentation/dev-guide/apispec/swagger/. \
-      --plugin="${SWAGGER_BIN}" --plugin="${GRPC_GATEWAY_BIN}" \
-      ${pb}.proto
-  # hack to move gw files around so client won't include them
-  pkgpath=$(dirname "${pb}")
-  pkg=$(basename "${pkgpath}")
-  gwfile="${pb}.pb.gw.go"
-
-  run sed -i -E "s#package $pkg#package gw#g" "${gwfile}"
-  run sed -i -E "s#import \\(#import \\(\"go.etcd.io/etcd/${pkgpath}\"#g" "${gwfile}"
-  run sed -i -E "s#([ (])([a-zA-Z0-9_]*(Client|Server|Request)([^(]|$))#\\1${pkg}.\\2#g" "${gwfile}"
-  run sed -i -E "s# (New[a-zA-Z0-9_]*Client\\()# ${pkg}.\\1#g" "${gwfile}"
-  run sed -i -E "s|go.etcd.io/etcd|go.etcd.io/etcd/v3|g" "${gwfile}"
-  run sed -i -E "s|go.etcd.io/etcd/v3/api|go.etcd.io/etcd/api/v3|g" "${gwfile}"
-  run sed -i -E "s|go.etcd.io/etcd/v3/server|go.etcd.io/etcd/server/v3|g" "${gwfile}"
-  
-  run go fmt "${gwfile}"
-
-  gwdir="${pkgpath}/gw/"
-  run mkdir -p "${gwdir}"
-  run mv "${gwfile}" "${gwdir}"
-
-  swaggerName=$(basename ${pb})
-  run mv  Documentation/dev-guide/apispec/swagger/${pb}.swagger.json \
-    Documentation/dev-guide/apispec/swagger/"${swaggerName}".swagger.json
-done
-
-log_callout -e "\\nRunning swagger ..."
-run_go_tool github.com/hexfusion/schwag -input=Documentation/dev-guide/apispec/swagger/rpc.swagger.json
-
-if [ "$1" != "--skip-protodoc" ]; then
-  log_callout "protodoc is auto-generating grpc API reference documentation..."
-
-  run rm -rf Documentation/dev-guide/api_reference_v3.md
-  run_go_tool go.etcd.io/protodoc --directories="api/etcdserverpb=service_message,api/mvccpb=service_message,server/lease/leasepb=service_message,api/authpb=service_message" \
-    --title="etcd API Reference" \
-    --output="Documentation/dev-guide/api_reference_v3.md" \
-    --message-only-from-this-file="api/etcdserverpb/rpc.proto" \
-    --disclaimer="This is a generated documentation. Please read the proto files for more." || exit 2
-
-  run rm -rf Documentation/dev-guide/api_concurrency_reference_v3.md
-  run_go_tool go.etcd.io/protodoc --directories="server/etcdserver/api/v3lock/v3lockpb=service_message,server/etcdserver/api/v3election/v3electionpb=service_message,api/mvccpb=service_message" \
-    --title="etcd concurrency API Reference" \
-    --output="Documentation/dev-guide/api_concurrency_reference_v3.md" \
-    --disclaimer="This is a generated documentation. Please read the proto files for more." || exit 2
-
-  log_success "protodoc is finished."
-else
-  log_warning "skipping grpc API reference document auto-generation..."
-fi
-
-log_success -e "\\n./genproto SUCCESS"
+#
+#log_callout -e "\\nRunning swagger & grpc_gateway proto generation..."
+#
+## remove old swagger files so it's obvious whether the files fail to generate
+#rm -rf Documentation/dev-guide/apispec/swagger/*json
+#for pb in api/etcdserverpb/rpc server/etcdserver/api/v3lock/v3lockpb/v3lock server/etcdserver/api/v3election/v3electionpb/v3election; do
+#  log_callout "grpc & swagger for: ${pb}.proto"
+#  run protoc -I. \
+#      -I"${GRPC_GATEWAY_ROOT}"/third_party/googleapis \
+#      -I"${GOGOPROTO_PATH}" \
+#      -I"${ETCD_ROOT_DIR}/.." \
+#      --grpc-gateway_out=logtostderr=true,paths=source_relative:. \
+#      --swagger_out=logtostderr=true:./Documentation/dev-guide/apispec/swagger/. \
+#      --plugin="${SWAGGER_BIN}" --plugin="${GRPC_GATEWAY_BIN}" \
+#      ${pb}.proto
+#  # hack to move gw files around so client won't include them
+#  pkgpath=$(dirname "${pb}")
+#  pkg=$(basename "${pkgpath}")
+#  gwfile="${pb}.pb.gw.go"
+#
+#  run sed -i -E "s#package $pkg#package gw#g" "${gwfile}"
+#  run sed -i -E "s#import \\(#import \\(\"go.etcd.io/etcd/${pkgpath}\"#g" "${gwfile}"
+#  run sed -i -E "s#([ (])([a-zA-Z0-9_]*(Client|Server|Request)([^(]|$))#\\1${pkg}.\\2#g" "${gwfile}"
+#  run sed -i -E "s# (New[a-zA-Z0-9_]*Client\\()# ${pkg}.\\1#g" "${gwfile}"
+#  run sed -i -E "s|go.etcd.io/etcd|go.etcd.io/etcd/v3|g" "${gwfile}"
+#  run sed -i -E "s|go.etcd.io/etcd/v3/api|go.etcd.io/etcd/api/v3|g" "${gwfile}"
+#  run sed -i -E "s|go.etcd.io/etcd/v3/server|go.etcd.io/etcd/server/v3|g" "${gwfile}"
+#
+#  run go fmt "${gwfile}"
+#
+#  gwdir="${pkgpath}/gw/"
+#  run mkdir -p "${gwdir}"
+#  run mv "${gwfile}" "${gwdir}"
+#
+#  swaggerName=$(basename ${pb})
+#  run mv  Documentation/dev-guide/apispec/swagger/${pb}.swagger.json \
+#    Documentation/dev-guide/apispec/swagger/"${swaggerName}".swagger.json
+#done
+#
+#log_callout -e "\\nRunning swagger ..."
+#run_go_tool github.com/hexfusion/schwag -input=Documentation/dev-guide/apispec/swagger/rpc.swagger.json
+#
+#if [ "$1" != "--skip-protodoc" ]; then
+#  log_callout "protodoc is auto-generating grpc API reference documentation..."
+#
+#  run rm -rf Documentation/dev-guide/api_reference_v3.md
+#  run_go_tool go.etcd.io/protodoc --directories="api/etcdserverpb=service_message,api/mvccpb=service_message,server/lease/leasepb=service_message,api/authpb=service_message" \
+#    --title="etcd API Reference" \
+#    --output="Documentation/dev-guide/api_reference_v3.md" \
+#    --message-only-from-this-file="api/etcdserverpb/rpc.proto" \
+#    --disclaimer="This is a generated documentation. Please read the proto files for more." || exit 2
+#
+#  run rm -rf Documentation/dev-guide/api_concurrency_reference_v3.md
+#  run_go_tool go.etcd.io/protodoc --directories="server/etcdserver/api/v3lock/v3lockpb=service_message,server/etcdserver/api/v3election/v3electionpb=service_message,api/mvccpb=service_message" \
+#    --title="etcd concurrency API Reference" \
+#    --output="Documentation/dev-guide/api_concurrency_reference_v3.md" \
+#    --disclaimer="This is a generated documentation. Please read the proto files for more." || exit 2
+#
+#  log_success "protodoc is finished."
+#else
+#  log_warning "skipping grpc API reference document auto-generation..."
+#fi
+#
+#log_success -e "\\n./genproto SUCCESS"

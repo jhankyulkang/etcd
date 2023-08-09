@@ -902,6 +902,8 @@ message MemberAddRequest {
   repeated string peerURLs = 1;
   // isLearner indicates if the added member is raft learner.
   bool isLearner = 2;
+  //indicates quorum
+  uint64 quorum = 3;
 }
 
 message MemberAddResponse {

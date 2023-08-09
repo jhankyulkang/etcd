@@ -183,6 +183,7 @@ message ConfChange {
 
 	optional uint64               confIndex = 5 [(gogoproto.nullable) = false];
 	optional uint64               confTerm = 6 [(gogoproto.nullable) = false];
+	optional uint64								quorum = 7 [(gogoproto.nullable) = false];
 }
 
 // ConfChangeSingle is an individual configuration change operation. Multiple

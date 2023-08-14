@@ -1,0 +1,18 @@
+etcdctlPath: /Users/kezhi/go/src/go.etcd.io/etcd/etcdctl/etcdctl
+serverPath: /Users/kezhi/go/src/go.etcd.io/etcd/server/server
+endpoints:
+  - 127.0.0.1:1379
+  - 127.0.0.1:2379
+  - 127.0.0.1:3379
+  - 127.0.0.1:4379
+  - 127.0.0.1:5379
+  - 127.0.0.1:6379
+etcdConfigs:
+  - /Users/kezhi/go/src/go.etcd.io/etcd/server/etcd-1.yaml
+  - /Users/kezhi/go/src/go.etcd.io/etcd/server/etcd-2.yaml
+  - /Users/kezhi/go/src/go.etcd.io/etcd/server/etcd-3.yaml
+  - /Users/kezhi/go/src/go.etcd.io/etcd/server/etcd-4.yaml
+  - /Users/kezhi/go/src/go.etcd.io/etcd/server/etcd-5.yaml
+  - /Users/kezhi/go/src/go.etcd.io/etcd/server/etcd-6.yaml
+
+

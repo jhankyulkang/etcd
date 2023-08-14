@@ -3,8 +3,9 @@ import os
 from fabric import task, Connection
 from invoke import UnexpectedExit, run
 
-PASSWORD = os.environ['KHOURY_PASSWORD']
-SSH_KEY_PATH = '~/.ssh/id_rsa'
+#PASSWORD = os.environ['KHOURY_PASSWORD']
+#SSH_KEY_PATH = '~/.ssh/id_rsa'
+SSH_KEY_PATH = '/home/ubuntu/.ssh/etcd_server'
 
 REMOTE_ETCD_DIR = '~/etcd'
 REMOTE_SERVER_DIR = REMOTE_ETCD_DIR + '/server'
@@ -22,7 +23,7 @@ class EtcdConfig:
     name: str
 
     TickMs: int = 10
-    ElectionMs: int = 100
+    ElectionMs: int = 1000
 
     listenClientUrls: str
     advertiseClientUrls: str
@@ -137,7 +138,8 @@ def stop(ctx, cluster_url):
     configs = parse_configs(cluster_url)
     for cfg in configs:
         ip = cfg.ip
-        run_cmd(cfg.ip, 'kill -9 $({}lsof -t -i:{})'.format('' if ip == LOCAL_HOST else '/usr/sbin/', cfg.port))
+       # run_cmd(cfg.ip, 'kill -9 $({}lsof -t -i:{})'.format('' if ip == LOCAL_HOST else '/usr/sbin/', cfg.port))
+        run_cmd(cfg.ip, 'killall server')
         print("stopped on " + ip)
 
 
@@ -146,6 +148,7 @@ def clean(ctx, cluster_url):
     """
     cluster_url format: 1=http://127.0.0.1:1380,2=http://127.0.0.1:2380,3=http://127.0.0.1:3380,4=http://127.0.0.1:4380,5=http://127.0.0.1:5380,6=http://127.0.0.1:6380
     """
+    stop(ctx, cluster_url)
     configs = parse_configs(cluster_url)
     for cfg in configs:
         ip = cfg.ip
@@ -166,7 +169,7 @@ def run_cmd(ip, cmd):
     if ip == LOCAL_HOST:
         run(cmd, asynchronous=True)
     else:
-        with Connection(user = "jokang", host=ip, connect_kwargs={'password': PASSWORD}) as conn:
+        with Connection(host=ip, connect_kwargs={'key_filename': SSH_KEY_PATH}) as conn:
             try:
                 conn.run(cmd, asynchronous=True)
             except UnexpectedExit:

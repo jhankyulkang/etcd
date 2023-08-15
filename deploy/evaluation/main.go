@@ -42,7 +42,7 @@ func main() {
 
 	switch cfg.Type {
 	case "add-performance":
-		addPeformance(cfg)
+		addPerformance(cfg)
 	case "split-performance":
 		splitPerformance(cfg)
 	case "split-impact":
@@ -55,7 +55,7 @@ func main() {
 		benchmarkSplit(cfg)
 	case "bench-merge":
 		benchmarkMerge(cfg)
-	
+
 	default:
 		panic(fmt.Sprintf("unknown type: %v", cfg.Type))
 	}

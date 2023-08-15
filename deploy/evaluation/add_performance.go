@@ -16,31 +16,31 @@ type addReport struct {
 	Start int64 `json:"start"`
 	Issue int64 `json:"issue"`
 
-	Queries []query `json:"queries"` // queries send to original leader cluster
+	//	Queries []query `json:"queries"` // queries send to original leader cluster
 
-	Observes []observe `json:"observes"` // observe on non-original-leader cluster
+	//	Observes []observe `json:"observes"` // observe on non-original-leader cluster
 
-	Leader   splitMeasure   `json:"leader"`   // measure collected from origin leader
-	Measures []splitMeasure `json:"measures"` // measures collected from non-original-leader cluster
+	Leader addMeasure `json:"leader"` // measure collected from origin leader
+	//	Measures []splitMeasure `json:"measures"` // measures collected from non-original-leader cluster
 }
 
-type splitMeasure struct {
-	SplitEnter  int64 `json:"splitEnter"`
-	SplitLeave  int64 `json:"splitLeave"`
+type addMeasure struct {
+	AddEnter    int64 `json:"AddEnter"`
+	AddLeave    int64 `json:"AddLeave"`
 	LeaderElect int64 `json:"leaderElect"`
 }
 
-type observe struct {
+type add_observe struct {
 	Observe int64   `json:"observe"` // unix microsecond timestamp on observing the leader
 	Queries []query `json:"queries"`
 }
 
-type query struct {
+type add_query struct {
 	Start   int64 `json:"start"`   // unix microsecond timestamp
 	Latency int64 `json:"latency"` // in microsecond
 }
 
-func splitPerformance(cfg config) {
+func addPerformance(cfg config) {
 	// get members' id and find the leader before add
 	clusterIds := make([][]uint64, len(cfg.Clusters))
 	leaderId := uint64(0)
@@ -77,13 +77,12 @@ func splitPerformance(cfg config) {
 	}
 
 	stopCh := make(chan struct{})
-	//run to here
 
 	// spawn thread to query on leader
 	log.Printf("spawn requesters...")
 	startQuery := make(chan struct{})
 	queryCh := make(chan []query) // one []query for one requester
-	splitDoneCh := make(chan struct{})
+	addDoneCh := make(chan struct{})
 	cli := mustCreateClient(leaderEp)
 	defer cli.Close()
 	for i := 0; i < int(cfg.Threads)*len(cfg.Clusters); i++ {
@@ -93,7 +92,7 @@ func splitPerformance(cfg config) {
 			for qidx := 0; ; qidx++ {
 				if tidx >= int(cfg.Threads) {
 					select {
-					case <-splitDoneCh:
+					case <-addDoneCh:
 						queryCh <- queries
 						return
 					default:
@@ -129,7 +128,7 @@ func splitPerformance(cfg config) {
 				cli := mustCreateClient(ep)
 				defer cli.Close()
 
-				<-splitDoneCh
+				<-addDoneCh
 
 				// check if this endpoint is leader
 				obTime := time.Now()
@@ -189,25 +188,25 @@ func splitPerformance(cfg config) {
 		}
 	}
 
-	// before split
+	// add memeber
 	log.Printf("ready to start")
-	splitCli := mustCreateClient(leaderEp)
+	addCli := mustCreateClient(leaderEp)
 	start := time.Now()
 	close(startQuery)
 	<-time.After(time.Duration(cfg.Before) * time.Second)
 
-	// issue split
+	// issue add
 	issue := time.Now()
 	ctx, _ := context.WithTimeout(context.Background(), time.Minute*5)
-	if _, err := splitCli.MemberSplit(ctx, getSplitMemberList(clusterIds), false, false); err != nil {
-		panic(fmt.Sprintf("split failed: %v", err))
+	if _, err := addCli.MemberJoint(ctx, getAddMemberList(clusterIds), nil); err != nil {
+		panic(fmt.Sprintf("add failed: %v", err))
 	}
-	close(splitDoneCh)
+	close(addDoneCh)
 
-	// after split
+	// after add
 	<-time.After(time.Duration(cfg.After) * time.Second)
 	close(stopCh)
-	splitCli.Close()
+	addCli.Close()
 
 	log.Printf("collect results...")
 
@@ -228,35 +227,35 @@ func splitPerformance(cfg config) {
 	}
 
 	// fetch split measurement from server
-	var leaderMeasure splitMeasure
-	measures := make([]splitMeasure, 0)
+	var leaderMeasure addMeasure
+	//measures := make([]splitMeasure, 0)
 	for idx, clr := range cfg.Clusters {
 		if idx == leaderClrIdx {
 			for _, ep := range clr {
 				if ep == leaderEp {
-					leaderMeasure = getSplitMeasure(ep)
+					leaderMeasure = getAddMeasure(ep)
 					log.Printf("leader measure: %v, %v, %v",
-						leaderMeasure.SplitEnter, leaderMeasure.SplitLeave, leaderMeasure.LeaderElect)
+						leaderMeasure.AddEnter, leaderMeasure.AddLeave, leaderMeasure.LeaderElect)
 				}
 			}
 		}
-		for _, ep := range clr {
+		/*for _, ep := range clr {
 			m := getSplitMeasure(ep)
 			log.Printf("measure: %v, %v, %v", m.SplitEnter, m.SplitLeave, m.LeaderElect)
 			measures = append(measures, m)
-		}
+		}*/
 	}
 
 	// write report to file
-	data, err := json.Marshal(splitReport{
-		Start:    start.UnixMicro(),
-		Issue:    issue.UnixMicro(),
-		Leader:   leaderMeasure,
-		Queries:  queries,
-		Observes: observes,
-		Measures: measures})
+	data, err := json.Marshal(addReport{
+		Start: start.UnixMicro(),
+		Issue: issue.UnixMicro()})
+	//Leader:   leaderMeasure,
+	//Queries:  queries,
+	//Observes: observes,
+	//Measures: measures})
 	if err != nil {
-		panic(fmt.Sprintf("marshal split report failed: %v", err))
+		panic(fmt.Sprintf("marshal add report failed: %v", err))
 	}
 	if err = os.WriteFile(fmt.Sprintf("%v/split-%v-%v.json", cfg.Folder, len(cfg.Clusters), cfg.Threads),
 		data, 0666); err != nil {
@@ -266,19 +265,19 @@ func splitPerformance(cfg config) {
 	log.Printf("finished.")
 }
 
-func getSplitMemberList(clusters [][]uint64) []etcdserverpb.MemberList {
-	clrs := make([]etcdserverpb.MemberList, 0)
+func getAddMemberList(clusters [][]uint64) []string {
+	var clrs = []string{"http:192.168.0.101:2380"}
 	for _, clr := range clusters {
 		mems := make([]etcdserverpb.Member, 0)
 		for _, id := range clr {
 			mems = append(mems, etcdserverpb.Member{ID: id})
 		}
-		clrs = append(clrs, etcdserverpb.MemberList{Members: mems})
+		//clrs = append(clrs, etcdserverpb.MemberList{Members: mems})
 	}
 	return clrs
 }
 
-func getSplitMeasure(ep string) splitMeasure {
+func getAddMeasure(ep string) addMeasure {
 	cli := mustCreateClient(ep)
 	defer cli.Close()
 
@@ -290,7 +289,7 @@ func getSplitMeasure(ep string) splitMeasure {
 		panic(fmt.Sprintf("invalidate measurement fetched: %v", resp.Kvs))
 	}
 
-	var m splitMeasure
+	var m addMeasure
 	if err = json.Unmarshal(resp.Kvs[0].Value, &m); err != nil {
 		panic(fmt.Sprintf("unmarshall measurement failed: %v", err))
 	}

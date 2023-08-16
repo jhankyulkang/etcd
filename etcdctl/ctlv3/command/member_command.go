@@ -203,12 +203,10 @@ func memberAddCommandFunc(cmd *cobra.Command, args []string) {
 
 		ctx, cancel := commandCtx(cmd)
 		cli := mustClientFromCmd(cmd)
-		//q := etcdserverpb.Quorum{Value: quroum} //suggestion fix: added keys deleted zero value
 
 		if isLearner {
 			resp, err = cli.MemberAddAsLearner(ctx, memberPeerURLs, uint64(quroum))
 		} else {
-			//fmt.Print(memberPeerURLs)
 			fmt.Print(quroum)
 			resp, err = cli.MemberAdd(ctx, memberPeerURLs, uint64(quroum))
 		}

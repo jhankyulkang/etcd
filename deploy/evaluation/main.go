@@ -6,6 +6,7 @@ import (
 	"gopkg.in/yaml.v3"
 	"os"
 	"time"
+	"log"
 )
 
 const ConfigFile = "./config.yaml"
@@ -43,19 +44,6 @@ func main() {
 	switch cfg.Type {
 	case "add-performance":
 		addPerformance(cfg)
-	case "split-performance":
-		splitPerformance(cfg)
-	case "split-impact":
-		splitImpact(cfg)
-	case "split-load":
-		splitLoad(cfg)
-	case "merge":
-		merge(cfg)
-	case "bench-split":
-		benchmarkSplit(cfg)
-	case "bench-merge":
-		benchmarkMerge(cfg)
-
 	default:
 		panic(fmt.Sprintf("unknown type: %v", cfg.Type))
 	}

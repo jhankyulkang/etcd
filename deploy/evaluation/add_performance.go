@@ -16,7 +16,7 @@ type addReport struct {
 	Start int64 `json:"start"`
 	Issue int64 `json:"issue"`
 
-	//	Queries []query `json:"queries"` // queries send to original leader cluster
+	//	Queries []add_query `json:"queries"` // queries send to original leader cluster
 
 	//	Observes []observe `json:"observes"` // observe on non-original-leader cluster
 
@@ -32,7 +32,7 @@ type addMeasure struct {
 
 type add_observe struct {
 	Observe int64   `json:"observe"` // unix microsecond timestamp on observing the leader
-	Queries []query `json:"queries"`
+	Queries []add_query `json:"queries"`
 }
 
 type add_query struct {
@@ -81,14 +81,15 @@ func addPerformance(cfg config) {
 	// spawn thread to query on leader
 	log.Printf("spawn requesters...")
 	startQuery := make(chan struct{})
-	queryCh := make(chan []query) // one []query for one requester
+	queryCh := make(chan []add_query) // one []add_query for one requester
 	addDoneCh := make(chan struct{})
 	cli := mustCreateClient(leaderEp)
 	defer cli.Close()
 	for i := 0; i < int(cfg.Threads)*len(cfg.Clusters); i++ {
+
 		go func(tidx int) {
 			<-startQuery
-			queries := make([]query, 0)
+			queries := make([]add_query, 0)
 			for qidx := 0; ; qidx++ {
 				if tidx >= int(cfg.Threads) {
 					select {
@@ -107,7 +108,7 @@ func addPerformance(cfg config) {
 						log.Printf("thread %v sending request #%v error: %v", tidx, qidx, err)
 						continue
 					}
-					queries = append(queries, query{s.UnixMicro(), time.Since(s).Microseconds()})
+					queries = append(queries, add_query{s.UnixMicro(), time.Since(s).Microseconds()})
 				case <-stopCh:
 					queryCh <- queries
 					return
@@ -118,7 +119,7 @@ func addPerformance(cfg config) {
 
 	// spawn thread to observe non-leader clusters and send queries after leave
 	log.Printf("spawn observers...")
-	observeCh := make(chan observe) // one observeCh to collect queries from all non-original-leader clusters
+	observeCh := make(chan add_observe) // one observeCh to collect queries from all non-original-leader clusters
 	for idx, clr := range cfg.Clusters {
 		if idx == leaderClrIdx {
 			continue
@@ -157,10 +158,10 @@ func addPerformance(cfg config) {
 					}
 				}
 
-				observeQueryCh := make(chan []query)
+				observeQueryCh := make(chan []add_query)
 				for i := 0; i < int(cfg.Threads); i++ {
 					go func(tidx int, ep string) {
-						queries := make([]query, 0)
+						queries := make([]add_query, 0)
 						for qidx := 0; ; qidx++ {
 							select {
 							default:
@@ -170,7 +171,7 @@ func addPerformance(cfg config) {
 									log.Printf("observer %v-%v sending request #%v error: %v", clrIdx, tidx, qidx, err)
 									continue
 								}
-								queries = append(queries, query{s.UnixMicro(), time.Since(s).Microseconds()})
+								queries = append(queries, add_query{s.UnixMicro(), time.Since(s).Microseconds()})
 							case <-stopCh:
 								observeQueryCh <- queries
 								return
@@ -179,11 +180,11 @@ func addPerformance(cfg config) {
 					}(i, ep)
 				}
 
-				queries := make([]query, 0)
+				queries := make([]add_query, 0)
 				for i := 0; i < int(cfg.Threads); i++ {
 					queries = append(queries, <-observeQueryCh...)
 				}
-				observeCh <- observe{Observe: obTime.UnixMicro(), Queries: queries}
+				observeCh <- add_observe{Observe: obTime.UnixMicro(), Queries: queries}
 			}(ep, leaderId, idx, clusterIds[idx])
 		}
 	}
@@ -211,7 +212,7 @@ func addPerformance(cfg config) {
 	log.Printf("collect results...")
 
 	// fetch queries
-	queries := make([]query, 0)
+	queries := make([]add_query, 0)
 	for i := 0; i < int(cfg.Threads)*len(cfg.Clusters); i++ {
 		qs := <-queryCh
 		log.Printf("requester fetch %v queries", len(qs))
@@ -219,7 +220,7 @@ func addPerformance(cfg config) {
 	}
 
 	// fetch observations
-	observes := make([]observe, 0)
+	observes := make([]add_observe, 0)
 	for i := 0; i < len(cfg.Clusters)-1; i++ {
 		ob := <-observeCh
 		log.Printf("observer start at %v fetch %v queries", ob.Observe/1e6, len(ob.Queries))

@@ -22,7 +22,7 @@ class EtcdConfig:
     port: int
     name: str
 
-    TickMs: int = 10
+    TickMs: int = 50
     ElectionMs: int = 1000
 
     listenClientUrls: str
@@ -111,7 +111,7 @@ def start(ctx, cluster_url, merge='false', logging='debug'):
 
 
 @task
-def start_join(ctx, cluster_url, names, logging='debug'):
+def join2(ctx, cluster_url, names, logging='debug'):
     """
     cluster_url format: 1=http://127.0.0.1:1380,2=http://127.0.0.1:2380,3=http://127.0.0.1:3380,4=http://127.0.0.1:4380,5=http://127.0.0.1:5380,6=http://127.0.0.1:6380
     """
@@ -167,10 +167,12 @@ def logs(ctx, ip):
 
 def run_cmd(ip, cmd):
     if ip == LOCAL_HOST:
+       # print("here")
         run(cmd, asynchronous=True)
     else:
         with Connection(host=ip, connect_kwargs={'key_filename': SSH_KEY_PATH}) as conn:
             try:
+               # print(cmd)
                 conn.run(cmd, asynchronous=True)
             except UnexpectedExit:
                 print("run cmd failed: " + cmd)

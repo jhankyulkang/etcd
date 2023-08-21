@@ -6,7 +6,6 @@ import (
 	"gopkg.in/yaml.v3"
 	"os"
 	"time"
-	"log"
 )
 
 const ConfigFile = "./config.yaml"

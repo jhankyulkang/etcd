@@ -5,10 +5,10 @@ import (
 	"encoding/json"
 	"fmt"
 	"go.etcd.io/etcd/api/v3/etcdserverpb"
-	v3 "go.etcd.io/etcd/client/v3"
+	//v3 "go.etcd.io/etcd/client/v3"
 	"log"
-	"os"
-	"strconv"
+	//"os"
+	//"strconv"
 	"time"
 )
 
@@ -50,6 +50,7 @@ func addPerformance(cfg config) {
 		clusterIds[idx] = make([]uint64, 0, len(clr))
 		for _, ep := range clr {
 			cli := mustCreateClient(ep)
+			log.Printf(ep)
 			resp, err := cli.Status(context.TODO(), ep)
 			if err != nil {
 				panic(fmt.Sprintf("get status for endpoint %v failed: %v", ep, err.Error()))
@@ -78,158 +79,34 @@ func addPerformance(cfg config) {
 
 	stopCh := make(chan struct{})
 
-	// spawn thread to query on leader
-	log.Printf("spawn requesters...")
-	startQuery := make(chan struct{})
-	queryCh := make(chan []add_query) // one []add_query for one requester
+	
 	addDoneCh := make(chan struct{})
-	cli := mustCreateClient(leaderEp)
-	defer cli.Close()
-	for i := 0; i < int(cfg.Threads)*len(cfg.Clusters); i++ {
-
-		go func(tidx int) {
-			<-startQuery
-			queries := make([]add_query, 0)
-			for qidx := 0; ; qidx++ {
-				if tidx >= int(cfg.Threads) {
-					select {
-					case <-addDoneCh:
-						queryCh <- queries
-						return
-					default:
-						break
-					}
-				}
-				select {
-				default:
-					s := time.Now()
-					ctx, _ := context.WithTimeout(context.TODO(), time.Minute*5)
-					if _, err := cli.Do(ctx, v3.OpPut(fmt.Sprintf("thread-%v-%v", tidx, qidx), strconv.Itoa(qidx))); err != nil {
-						log.Printf("thread %v sending request #%v error: %v", tidx, qidx, err)
-						continue
-					}
-					queries = append(queries, add_query{s.UnixMicro(), time.Since(s).Microseconds()})
-				case <-stopCh:
-					queryCh <- queries
-					return
-				}
-			}
-		}(i)
-	}
-
-	// spawn thread to observe non-leader clusters and send queries after leave
-	log.Printf("spawn observers...")
-	observeCh := make(chan add_observe) // one observeCh to collect queries from all non-original-leader clusters
-	for idx, clr := range cfg.Clusters {
-		if idx == leaderClrIdx {
-			continue
-		}
-		for _, ep := range clr {
-			go func(ep string, oldLeader uint64, clrIdx int, ids []uint64) {
-				cli := mustCreateClient(ep)
-				defer cli.Close()
-
-				<-addDoneCh
-
-				// check if this endpoint is leader
-				obTime := time.Now()
-				for {
-					resp, err := cli.Status(context.TODO(), ep)
-					if err != nil {
-						log.Printf("observe %v error: %v", ep, err)
-					}
-					if resp.Leader != 0 && resp.Leader != oldLeader {
-						found := false
-						for _, id := range ids {
-							if id == resp.Leader {
-								found = true
-								break
-							}
-						}
-						if found {
-							if resp.Leader == resp.Header.MemberId {
-								obTime = time.Now()
-								break // if this client connects to leader, start sending queries
-							} else {
-								cli.Close()
-								return // if not leader, return
-							}
-						}
-					}
-				}
-
-				observeQueryCh := make(chan []add_query)
-				for i := 0; i < int(cfg.Threads); i++ {
-					go func(tidx int, ep string) {
-						queries := make([]add_query, 0)
-						for qidx := 0; ; qidx++ {
-							select {
-							default:
-								s := time.Now()
-								ctx, _ := context.WithTimeout(context.Background(), time.Minute*5)
-								if _, err := cli.Do(ctx, v3.OpPut(fmt.Sprintf("observer-%v-%v", tidx, qidx), strconv.Itoa(qidx))); err != nil {
-									log.Printf("observer %v-%v sending request #%v error: %v", clrIdx, tidx, qidx, err)
-									continue
-								}
-								queries = append(queries, add_query{s.UnixMicro(), time.Since(s).Microseconds()})
-							case <-stopCh:
-								observeQueryCh <- queries
-								return
-							}
-						}
-					}(i, ep)
-				}
-
-				queries := make([]add_query, 0)
-				for i := 0; i < int(cfg.Threads); i++ {
-					queries = append(queries, <-observeQueryCh...)
-				}
-				observeCh <- add_observe{Observe: obTime.UnixMicro(), Queries: queries}
-			}(ep, leaderId, idx, clusterIds[idx])
-		}
-	}
-
+	
 	// add memeber
 	log.Printf("ready to start")
 	addCli := mustCreateClient(leaderEp)
-	start := time.Now()
-	close(startQuery)
-	<-time.After(time.Duration(cfg.Before) * time.Second)
+	//start := time.Now()
+	log.Print(<-time.After(time.Duration(cfg.Before) * time.Second))
 
 	// issue add
 	issue := time.Now()
 	ctx, _ := context.WithTimeout(context.Background(), time.Minute*5)
-	if _, err := addCli.MemberJoint(ctx, getAddMemberList(clusterIds), nil); err != nil {
+	if _, err := addCli.MemberAdd(ctx, getAddMemberList(clusterIds), 0); err != nil {
 		panic(fmt.Sprintf("add failed: %v", err))
 	}
 	close(addDoneCh)
 
 	// after add
-	<-time.After(time.Duration(cfg.After) * time.Second)
+	log.Print(<-time.After(time.Duration(cfg.After) * time.Second))
 	close(stopCh)
 	addCli.Close()
 
 	log.Printf("collect results...")
-
-	// fetch queries
-	queries := make([]add_query, 0)
-	for i := 0; i < int(cfg.Threads)*len(cfg.Clusters); i++ {
-		qs := <-queryCh
-		log.Printf("requester fetch %v queries", len(qs))
-		queries = append(queries, qs...)
-	}
-
-	// fetch observations
-	observes := make([]add_observe, 0)
-	for i := 0; i < len(cfg.Clusters)-1; i++ {
-		ob := <-observeCh
-		log.Printf("observer start at %v fetch %v queries", ob.Observe/1e6, len(ob.Queries))
-		observes = append(observes, ob)
-	}
+	log.Print(issue)
 
 	// fetch split measurement from server
-	var leaderMeasure addMeasure
-	//measures := make([]splitMeasure, 0)
+	/*var leaderMeasure addMeasure
+	measures := make([]addMeasure, 0)
 	for idx, clr := range cfg.Clusters {
 		if idx == leaderClrIdx {
 			for _, ep := range clr {
@@ -240,13 +117,13 @@ func addPerformance(cfg config) {
 				}
 			}
 		}
-		/*for _, ep := range clr {
-			m := getSplitMeasure(ep)
-			log.Printf("measure: %v, %v, %v", m.SplitEnter, m.SplitLeave, m.LeaderElect)
+		for _, ep := range clr {
+			m := getAddMeasure(ep)
+			log.Printf("measure: %v, %v, %v", m.AddEnter, m.AddLeave, m.LeaderElect)
 			measures = append(measures, m)
-		}*/
+		}
 	}
-
+/*
 	// write report to file
 	data, err := json.Marshal(addReport{
 		Start: start.UnixMicro(),
@@ -262,12 +139,12 @@ func addPerformance(cfg config) {
 		data, 0666); err != nil {
 		panic(fmt.Sprintf("write report json failed: %v", err))
 	}
-
+*/
 	log.Printf("finished.")
 }
 
 func getAddMemberList(clusters [][]uint64) []string {
-	var clrs = []string{"http:192.168.0.101:2380"}
+	var clrs = []string{"http://192.168.0.101:2380"}
 	for _, clr := range clusters {
 		mems := make([]etcdserverpb.Member, 0)
 		for _, id := range clr {

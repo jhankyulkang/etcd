@@ -40,6 +40,79 @@ type add_query struct {
 	Latency int64 `json:"latency"` // in microsecond
 }
 
+func addPerformance_B(cfg config) {
+	// get members' id and find the leader before add
+	clusterIds := make([][]uint64, len(cfg.Clusters))
+	leaderId := uint64(0)
+	leaderEp := ""
+	leaderClrIdx := -1
+	for idx, clr := range cfg.Clusters {
+		clusterIds[idx] = make([]uint64, 0, len(clr))
+		for _, ep := range clr {
+			cli := mustCreateClient(ep)
+			log.Printf(ep)
+			resp, err := cli.Status(context.TODO(), ep)
+			if err != nil {
+				panic(fmt.Sprintf("get status for endpoint %v failed: %v", ep, err.Error()))
+			}
+			if leaderId != 0 && leaderId != resp.Leader {
+				panic(fmt.Sprintf("leader not same: %v and %v", leaderId, resp.Leader))
+			}
+
+			leaderId = resp.Leader
+			if resp.Header.MemberId == leaderId {
+				leaderEp = ep
+				leaderClrIdx = idx
+			}
+
+			clusterIds[idx] = append(clusterIds[idx], resp.Header.MemberId)
+			if err = cli.Close(); err != nil {
+				panic(err)
+			}
+		}
+	}
+	if leaderEp == "" || leaderClrIdx == -1 {
+		panic("leader not found")
+	} else {
+		log.Printf("found leader %v at endpoint %v\n", leaderId, leaderEp)
+	}
+
+	
+	
+	// add memeber
+	log.Printf("ready to start")
+	
+	//start := time.Now()
+
+	list := getAddMemberList(clusterIds)
+	for _, mem := range list{
+		addCli := mustCreateClient(leaderEp)
+		stopCh := make(chan struct{})
+		addDoneCh := make(chan struct{})
+		print(mem)
+		var l [1]string
+		l[0] = mem
+		var memb []string = l[0:]
+		log.Print(<-time.After(time.Duration(cfg.Before) * time.Second))
+
+		// issue add
+		//issue := time.Now()
+		ctx, _ := context.WithTimeout(context.Background(), time.Minute*5)
+		if _, err := addCli.MemberAdd(ctx,memb, 0); err != nil {
+			panic(fmt.Sprintf("add failed: %v", err))
+		}
+		close(addDoneCh)
+
+		// after add
+		log.Print(<-time.After(time.Duration(cfg.After) * time.Second))
+		close(stopCh)
+		addCli.Close()
+	}
+
+
+
+	log.Printf("collect results...")
+}
 func addPerformance(cfg config) {
 	// get members' id and find the leader before add
 	clusterIds := make([][]uint64, len(cfg.Clusters))
@@ -103,48 +176,11 @@ func addPerformance(cfg config) {
 
 	log.Printf("collect results...")
 	log.Print(issue)
-
-	// fetch split measurement from server
-	/*var leaderMeasure addMeasure
-	measures := make([]addMeasure, 0)
-	for idx, clr := range cfg.Clusters {
-		if idx == leaderClrIdx {
-			for _, ep := range clr {
-				if ep == leaderEp {
-					leaderMeasure = getAddMeasure(ep)
-					log.Printf("leader measure: %v, %v, %v",
-						leaderMeasure.AddEnter, leaderMeasure.AddLeave, leaderMeasure.LeaderElect)
-				}
-			}
-		}
-		for _, ep := range clr {
-			m := getAddMeasure(ep)
-			log.Printf("measure: %v, %v, %v", m.AddEnter, m.AddLeave, m.LeaderElect)
-			measures = append(measures, m)
-		}
-	}
-/*
-	// write report to file
-	data, err := json.Marshal(addReport{
-		Start: start.UnixMicro(),
-		Issue: issue.UnixMicro()})
-	//Leader:   leaderMeasure,
-	//Queries:  queries,
-	//Observes: observes,
-	//Measures: measures})
-	if err != nil {
-		panic(fmt.Sprintf("marshal add report failed: %v", err))
-	}
-	if err = os.WriteFile(fmt.Sprintf("%v/split-%v-%v.json", cfg.Folder, len(cfg.Clusters), cfg.Threads),
-		data, 0666); err != nil {
-		panic(fmt.Sprintf("write report json failed: %v", err))
-	}
-*/
-	log.Printf("finished.")
 }
-
 func getAddMemberList(clusters [][]uint64) []string {
-	var clrs = []string{"http://192.168.0.101:2380"}
+	//var clrs = []string{"http://192.168.0.101:2380","http://192.168.0.99:2380","http://192.168.0.65:2380","http://192.168.0.181:2380","http://192.168.0.81:2380"}
+	//var clrs = []string{"http://192.168.0.101:2380"}
+	var clrs = []string{"http://192.168.0.99:2380"}
 	for _, clr := range clusters {
 		mems := make([]etcdserverpb.Member, 0)
 		for _, id := range clr {

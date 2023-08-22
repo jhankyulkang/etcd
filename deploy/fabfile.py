@@ -111,7 +111,7 @@ def start(ctx, cluster_url, merge='false', logging='debug'):
 
 
 @task
-def join2(ctx, cluster_url, names, logging='debug'):
+def join2(cluster_url, names, logging='debug'):
     """
     cluster_url format: 1=http://127.0.0.1:1380,2=http://127.0.0.1:2380,3=http://127.0.0.1:3380,4=http://127.0.0.1:4380,5=http://127.0.0.1:5380,6=http://127.0.0.1:6380
     """

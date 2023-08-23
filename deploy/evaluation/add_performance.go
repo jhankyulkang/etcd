@@ -162,9 +162,10 @@ func addPerformance(cfg config) {
 	log.Print(<-time.After(time.Duration(cfg.Before) * time.Second))
 
 	// issue add
-	issue := time.Now()
+
 	ctx, _ := context.WithTimeout(context.Background(), time.Minute*5)
-	if _, err := addCli.MemberAdd(ctx, getAddMemberList(clusterIds), 0); err != nil {
+	issue := time.Now()
+	if _, err := addCli.MemberJoint(ctx, getAddMemberList(clusterIds), nil); err != nil {
 		panic(fmt.Sprintf("add failed: %v", err))
 	}
 	close(addDoneCh)
@@ -178,9 +179,9 @@ func addPerformance(cfg config) {
 	log.Print(issue)
 }
 func getAddMemberList(clusters [][]uint64) []string {
-	//var clrs = []string{"http://192.168.0.101:2380","http://192.168.0.99:2380","http://192.168.0.65:2380","http://192.168.0.181:2380","http://192.168.0.81:2380"}
+	var clrs = []string{"http://192.168.0.101:2380","http://192.168.0.99:2380","http://192.168.0.65:2380","http://192.168.0.181:2380","http://192.168.0.81:2380"}
 	//var clrs = []string{"http://192.168.0.101:2380"}
-	var clrs = []string{"http://192.168.0.99:2380"}
+	//var clrs = []string{"http://192.168.0.99:2380"}
 	for _, clr := range clusters {
 		mems := make([]etcdserverpb.Member, 0)
 		for _, id := range clr {

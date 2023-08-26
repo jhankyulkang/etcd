@@ -173,7 +173,7 @@ def run_cmd(ip, cmd):
     else:
         with Connection(host=ip, connect_kwargs={'key_filename': SSH_KEY_PATH}) as conn:
             try:
-               # print(cmd)
+                print(cmd)
                 conn.run(cmd, asynchronous=True)
             except UnexpectedExit:
                 print("run cmd failed: " + cmd)

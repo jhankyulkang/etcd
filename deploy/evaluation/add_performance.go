@@ -1,7 +1,7 @@
 package main
 
 import (
-	"bufio"
+	//"bufio"
 	"context"
 	"encoding/json"
 	"go.etcd.io/etcd/api/v3/etcdserverpb"
@@ -11,9 +11,9 @@ import (
 	"github.com/melbahja/goph"
 	//"go.etcd.io/etcd/api/v3/etcdserverpb"
 	"golang.org/x/crypto/ssh"
-	"golang.org/x/crypto/ssh/knownhosts"
-	"io"
-	"os"
+	//"golang.org/x/crypto/ssh/knownhosts"
+	//"io"
+	//"os"
 	//v3 "go.etcd.io/etcd/client/v3"
 	"log"
 	//"os"
@@ -182,10 +182,46 @@ func addPerformance(cfg config) {
 		panic(fmt.Sprintf("add failed: %v", err))
 	}
 	close(addDoneCh)
-	host := "http://192.168.0.101:2380"
+	/*host := "192.168.0.101:22"
 	user := "ubuntu"
-	pKey := []byte("/home/ubuntu/.ssh/etcd_server")
-
+	pKey := []byte(`-----BEGIN OPENSSH PRIVATE KEY-----
+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
+-----END OPENSSH PRIVATE KEY-----`)
 	var err error
 	var signer ssh.Signer
 
@@ -195,7 +231,7 @@ func addPerformance(cfg config) {
 	}
 
 	var hostkeyCallback ssh.HostKeyCallback
-	hostkeyCallback, err = knownhosts.New("~/.ssh/known_hosts")
+	hostkeyCallback, err = knownhosts.New("/home/ubuntu/.ssh/known_hosts")
 	if err != nil {
 		fmt.Println(err.Error())
 	}
@@ -204,6 +240,7 @@ func addPerformance(cfg config) {
 		User:            user,
 		HostKeyCallback: hostkeyCallback,
 		Auth: []ssh.AuthMethod{
+			ssh.Password("joshuakang"),
 			ssh.PublicKeys(signer),
 		},
 	}
@@ -295,7 +332,7 @@ func addPerformance(cfg config) {
 
 		wr <- []byte(text + "\n")
 	}
-
+*/
 	// after add
 	log.Print(<-time.After(time.Duration(cfg.After) * time.Second))
 	close(stopCh)

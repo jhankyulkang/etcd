@@ -109,7 +109,6 @@ def start(ctx, cluster_url, merge='false', logging='debug'):
     for cfg in configs:
         start_config(cfg)
 
-
 @task
 def join2(ctx, cluster_url, names, logging='debug'):
     """
@@ -120,7 +119,7 @@ def join2(ctx, cluster_url, names, logging='debug'):
     for cfg in configs:
         if cfg.name in names:
             cfg.join()
-            print(cfg)
+            #print(cfg)
             start_config(cfg)
 
 
@@ -168,7 +167,6 @@ def logs(ctx, ip):
 
 def run_cmd(ip, cmd):
     if ip == LOCAL_HOST:
-        print("here")
         run(cmd, asynchronous=True)
     else:
         with Connection(host=ip, connect_kwargs={'key_filename': SSH_KEY_PATH}) as conn:

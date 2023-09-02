@@ -5,18 +5,17 @@ import (
 	"context"
 	"encoding/json"
 	"go.etcd.io/etcd/api/v3/etcdserverpb"
-
+	//"bytes"
 	//"encoding/json"
 	"fmt"
 	"github.com/melbahja/goph"
 	//"go.etcd.io/etcd/api/v3/etcdserverpb"
 	"golang.org/x/crypto/ssh"
-	//"golang.org/x/crypto/ssh/knownhosts"
+	"golang.org/x/crypto/ssh/knownhosts"
 	//"io"
 	//"os"
 	//v3 "go.etcd.io/etcd/client/v3"
 	"log"
-	//"os"
 	//"strconv"
 	"time"
 )
@@ -127,63 +126,8 @@ func addPerformance_B(cfg config) {
 
 	log.Printf("collect results...")
 }
-func addPerformance(cfg config) {
-	// get members' id and find the leader before add
-	clusterIds := make([][]uint64, len(cfg.Clusters))
-	leaderId := uint64(0)
-	leaderEp := ""
-	leaderClrIdx := -1
-	for idx, clr := range cfg.Clusters {
-		clusterIds[idx] = make([]uint64, 0, len(clr))
-		for _, ep := range clr {
-			cli := mustCreateClient(ep)
-			log.Printf(ep)
-			resp, err := cli.Status(context.TODO(), ep)
-			if err != nil {
-				panic(fmt.Sprintf("get status for endpoint %v failed: %v", ep, err.Error()))
-			}
-			if leaderId != 0 && leaderId != resp.Leader {
-				panic(fmt.Sprintf("leader not same: %v and %v", leaderId, resp.Leader))
-			}
-
-			leaderId = resp.Leader
-			if resp.Header.MemberId == leaderId {
-				leaderEp = ep
-				leaderClrIdx = idx
-			}
-
-			clusterIds[idx] = append(clusterIds[idx], resp.Header.MemberId)
-			if err = cli.Close(); err != nil {
-				panic(err)
-			}
-		}
-	}
-	if leaderEp == "" || leaderClrIdx == -1 {
-		panic("leader not found")
-	} else {
-		log.Printf("found leader %v at endpoint %v\n", leaderId, leaderEp)
-	}
-
-	stopCh := make(chan struct{})
-
-	addDoneCh := make(chan struct{})
-
-	// add memeber
-	log.Printf("ready to start")
-	addCli := mustCreateClient(leaderEp)
-	//start := time.Now()
-	log.Print(<-time.After(time.Duration(cfg.Before) * time.Second))
-
-	// issue add
-
-	ctx, _ := context.WithTimeout(context.Background(), time.Minute*5)
-	issue := time.Now()
-	if _, err := addCli.MemberJoint(ctx, getAddMemberList(clusterIds), nil); err != nil {
-		panic(fmt.Sprintf("add failed: %v", err))
-	}
-	close(addDoneCh)
-	/*host := "192.168.0.101:22"
-	user := "ubuntu"
+func addPerformance5(cfg config) {
+	log.Printf("here")
 	pKey := []byte(`-----BEGIN OPENSSH PRIVATE KEY-----
 b3BlbnNzaC1rZXktdjEAAAAABG5vbmUAAAAEbm9uZQAAAAAAAAABAAABlwAAAAdzc2gtcn
 NhAAAAAwEAAQAAAYEA3R1hcQ/DEUaH1M5mShHPZ4tfyCv06r87s4XX05n96A3IlNo5+oFY
@@ -222,128 +166,267 @@ q/KNyas/OxSoZJCr7jz8TipzFL01/9affnY3e0kl/WfWkGAcVHpwZYQdKGXZbmoFt9CYIt
 XHu2QlfiJsM+oPuu0RWFI8jVr+5l+QXU/gDLsxjJAxXsukeuSPy/6a2ul9YBAtBvrt3Vo9
 A78+kvbGsPljkAAAAQdWJ1bnR1QGV0Y2QtdGVzdAECAw==
 -----END OPENSSH PRIVATE KEY-----`)
-	var err error
-	var signer ssh.Signer
-
-	signer, err = ssh.ParsePrivateKey(pKey)
-	if err != nil {
-		fmt.Println(err.Error())
-	}
-
-	var hostkeyCallback ssh.HostKeyCallback
-	hostkeyCallback, err = knownhosts.New("/home/ubuntu/.ssh/known_hosts")
-	if err != nil {
-		fmt.Println(err.Error())
-	}
-
-	conf := &ssh.ClientConfig{
-		User:            user,
-		HostKeyCallback: hostkeyCallback,
-		Auth: []ssh.AuthMethod{
-			ssh.Password("joshuakang"),
-			ssh.PublicKeys(signer),
-		},
-	}
-
-	var conn *ssh.Client
-
-	conn, err = ssh.Dial("tcp", host, conf)
-	if err != nil {
-		fmt.Println(err.Error())
-	}
-	defer conn.Close()
-
-	var session *ssh.Session
-	var stdin io.WriteCloser
-	var stdout, stderr io.Reader
-
-	session, err = conn.NewSession()
-	if err != nil {
-		fmt.Println(err.Error())
-	}
-	defer session.Close()
-
-	stdin, err = session.StdinPipe()
-	if err != nil {
-		fmt.Println(err.Error())
-	}
-
-	stdout, err = session.StdoutPipe()
-	if err != nil {
-		fmt.Println(err.Error())
-	}
-
-	stderr, err = session.StderrPipe()
-	if err != nil {
-		fmt.Println(err.Error())
-	}
-
-	wr := make(chan []byte, 10)
-
-	go func() {
-		for {
-			select {
-			case d := <-wr:
-				_, err := stdin.Write(d)
+		clusterIds := make([][]uint64, len(cfg.Clusters))
+		leaderId := uint64(0)
+		leaderEp := ""
+		leaderClrIdx := -1
+		var nm = []string{"http://192.168.0.101:2380"}
+		host := "192.168.0.101:22"
+		var cmd = "cd ~/etcd/server && nohup ./server --data-dir=data.etcd.5 --name=5 --heartbeat-interval=50 --election-timeout=1000 --listen-client-urls=http://192.168.0.99:2379 --advertise-client-urls=http://192.168.0.99:2379 --initial-advertise-peer-urls=http://192.168.0.99:2380 --listen-peer-urls=http://192.168.0.99:2380 --initial-cluster=1=http://192.168.0.140:2380,2=http://192.168.0.218:2380,3=http://192.168.0.245:2380,4=http://192.168.0.101:2380,5=http://192.168.0.99:2380 --initial-cluster-state=existing --pre-vote=false --log-level=panic > etcd.5.out 2>&1 &"
+		for idx, clr := range cfg.Clusters {
+			clusterIds[idx] = make([]uint64, 0, len(clr))
+			for _, ep := range clr {
+				cli := mustCreateClient(ep)
+				resp, err := cli.Status(context.TODO(), ep)
 				if err != nil {
-					fmt.Println(err.Error())
+					panic(fmt.Sprintf("get status for endpoint %v failed: %v", ep, err.Error()))
+				}
+				if leaderId != 0 && leaderId != resp.Leader {
+					panic(fmt.Sprintf("leader not same: %v and %v", leaderId, resp.Leader))
+				}
+				leaderId = resp.Leader
+				if resp.Header.MemberId == leaderId {
+					leaderEp = ep
+					leaderClrIdx = idx
+				}
+				clusterIds[idx] = append(clusterIds[idx], resp.Header.MemberId)
+				if err = cli.Close(); err != nil {
+					panic(err)
 				}
 			}
 		}
-	}()
+		if leaderEp == "" || leaderClrIdx == -1 {
+			panic("leader not found")
+		} else {
+			log.Printf("found leader %v at endpoint %v\n", leaderId, leaderEp)
+		}
+		stopCh := make(chan struct{})
+		addDoneCh := make(chan struct{})
+		
+		// add memeber
+		log.Printf("ready to start: ")
+		addCli := mustCreateClient(leaderEp)
+		start := time.Now()
+		ctx, _ := context.WithTimeout(context.Background(), time.Minute*5)
+		if _, err := addCli.MemberAdd(ctx, nm, 0); err != nil {
+			panic(fmt.Sprintf("add failed: %v", err))
+		}
+		log.Print(time.Since(start))
+		close(addDoneCh)
+		close(stopCh)
+		addCli.Close()
 
-	go func() {
-		scanner := bufio.NewScanner(stdout)
-		for {
-			if tkn := scanner.Scan(); tkn {
-				rcv := scanner.Bytes()
+		user := "jk"
+	
+		var err error
+		var signer ssh.Signer
 
-				raw := make([]byte, len(rcv))
-				copy(raw, rcv)
+		signer, err = ssh.ParsePrivateKey(pKey)
+		if err != nil {
+			fmt.Println(err.Error())
+		}
 
-				fmt.Println(string(raw))
-			} else {
-				if scanner.Err() != nil {
-					fmt.Println(scanner.Err())
-				} else {
-					fmt.Println("io.EOF")
+		var hostkeyCallback ssh.HostKeyCallback
+		hostkeyCallback, err = knownhosts.New("/home/ubuntu/.ssh/known_hosts")
+		if err != nil {
+			fmt.Println(err.Error())
+		}
+
+		conf := &ssh.ClientConfig{
+			User:            user,
+			HostKeyCallback: hostkeyCallback,
+			Auth: []ssh.AuthMethod{
+				ssh.Password("joshuakang"),
+				ssh.PublicKeys(signer),
+			},
+		}
+
+		var conn *ssh.Client
+
+		conn, err = ssh.Dial("tcp", host, conf)
+		if err != nil {
+			fmt.Println(err.Error())
+		}
+		 
+		session, err := conn.NewSession()
+		if err != nil {
+			fmt.Print(err)
+		}
+
+		err = session.Run(cmd)
+		conn.Close()
+		session.Close()
+}
+
+func addPerformance(cfg config) {
+	pKey := []byte(`-----BEGIN OPENSSH PRIVATE KEY-----
+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
+-----END OPENSSH PRIVATE KEY-----`)
+	var member_list = []string{
+		"192.168.0.101", 
+		"192.168.0.99", 
+		"192.168.0.65", 
+		"192.168.0.181", 
+		"192.168.0.81"}
+	var cmd_list = []string{
+		"cd ~/etcd/server && nohup ./server --data-dir=data.etcd.4 --name=4 --heartbeat-interval=50 --election-timeout=1000 --listen-client-urls=http://192.168.0.101:2379 --advertise-client-urls=http://192.168.0.101:2379 --initial-advertise-peer-urls=http://192.168.0.101:2380 --listen-peer-urls=http://192.168.0.101:2380 --initial-cluster=1=http://192.168.0.140:2380,2=http://192.168.0.218:2380,3=http://192.168.0.245:2380,4=http://192.168.0.101:2380 --initial-cluster-state=existing --pre-vote=false --log-level=panic > etcd.4.out 2>&1 &",
+		"cd ~/etcd/server && nohup ./server --data-dir=data.etcd.5 --name=5 --heartbeat-interval=50 --election-timeout=1000 --listen-client-urls=http://192.168.0.99:2379 --advertise-client-urls=http://192.168.0.99:2379 --initial-advertise-peer-urls=http://192.168.0.99:2380 --listen-peer-urls=http://192.168.0.99:2380 --initial-cluster=1=http://192.168.0.140:2380,2=http://192.168.0.218:2380,3=http://192.168.0.245:2380,4=http://192.168.0.101:2380,5=http://192.168.0.99:2380 --initial-cluster-state=existing --pre-vote=false --log-level=panic > etcd.5.out 2>&1 &",
+		"cd ~/etcd/server && nohup ./server --data-dir=data.etcd.6 --name=6 --heartbeat-interval=50 --election-timeout=1000 --listen-client-urls=http://192.168.0.65:2379 --advertise-client-urls=http://192.168.0.65:2379 --initial-advertise-peer-urls=http://192.168.0.65:2380 --listen-peer-urls=http://192.168.0.65:2380 --initial-cluster=1=http://192.168.0.140:2380,2=http://192.168.0.218:2380,3=http://192.168.0.245:2380,4=http://192.168.0.101:2380,5=http://192.168.0.99:2380,6=http://192.168.0.65:2380 --initial-cluster-state=existing --pre-vote=false --log-level=panic > etcd.6.out 2>&1 &",
+		"cd ~/etcd/server && nohup ./server --data-dir=data.etcd.7 --name=7 --heartbeat-interval=50 --election-timeout=1000 --listen-client-urls=http://192.168.0.181:2379 --advertise-client-urls=http://192.168.0.181:2379 --initial-advertise-peer-urls=http://192.168.0.181:2380 --listen-peer-urls=http://192.168.0.181:2380 --initial-cluster=1=http://192.168.0.140:2380,2=http://192.168.0.218:2380,3=http://192.168.0.245:2380,4=http://192.168.0.101:2380,5=http://192.168.0.99:2380,6=http://192.168.0.65:2380,7=http://192.168.0.181:2380 --initial-cluster-state=existing --pre-vote=false --log-level=panic > etcd.7.out 2>&1 &",
+		"cd ~/etcd/server && nohup ./server --data-dir=data.etcd.8 --name=8 --heartbeat-interval=50 --election-timeout=1000 --listen-client-urls=http://192.168.0.81:2379 --advertise-client-urls=http://192.168.0.81:2379 --initial-advertise-peer-urls=http://192.168.0.81:2380 --listen-peer-urls=http://192.168.0.81:2380 --initial-cluster=1=http://192.168.0.140:2380,2=http://192.168.0.218:2380,3=http://192.168.0.245:2380,4=http://192.168.0.101:2380,5=http://192.168.0.99:2380,6=http://192.168.0.65:2380,7=http://192.168.0.181:2380,7=http://192.168.0.81:2380 --initial-cluster-state=existing --pre-vote=false --log-level=panic > etcd.8.out 2>&1 &"}
+
+	for i, new_member := range member_list {
+		log.Printf("starting")
+		fmt.Print(i)
+		// get members' id and find the leader before add
+		clusterIds := make([][]uint64, len(cfg.Clusters))
+		leaderId := uint64(0)
+		leaderEp := ""
+		leaderClrIdx := -1
+		for idx, clr := range cfg.Clusters {
+			clusterIds[idx] = make([]uint64, 0, len(clr))
+			for _, ep := range clr {
+				cli := mustCreateClient(ep)
+				log.Printf(ep)
+				resp, err := cli.Status(context.TODO(), ep)
+				if err != nil {
+					panic(fmt.Sprintf("get status for endpoint %v failed: %v", ep, err.Error()))
 				}
-				return
+				if leaderId != 0 && leaderId != resp.Leader {
+					panic(fmt.Sprintf("leader not same: %v and %v", leaderId, resp.Leader))
+				}
+
+				leaderId = resp.Leader
+				if resp.Header.MemberId == leaderId {
+					leaderEp = ep
+					leaderClrIdx = idx
+				}
+
+				clusterIds[idx] = append(clusterIds[idx], resp.Header.MemberId)
+				if err = cli.Close(); err != nil {
+					panic(err)
+				}
 			}
 		}
-	}()
-
-	go func() {
-		scanner := bufio.NewScanner(stderr)
-
-		for scanner.Scan() {
-			fmt.Println(scanner.Text())
+		if leaderEp == "" || leaderClrIdx == -1 {
+			panic("leader not found")
+		} else {
+			log.Printf("found leader %v at endpoint %v\n", leaderId, leaderEp)
 		}
-	}()
 
-	session.Shell()
+		stopCh := make(chan struct{})
 
-	for {
-		fmt.Println("$")
+		addDoneCh := make(chan struct{})
 
-		scanner := bufio.NewScanner(os.Stdin)
-		scanner.Scan()
-		text := scanner.Text()
+		// add memeber
+		log.Printf("ready to start: ")
+		log.Print(i)
+		addCli := mustCreateClient(leaderEp)
+		
+		//log.Print(<-time.After(time.Duration(cfg.Before) * time.Second))
 
-		wr <- []byte(text + "\n")
+		// issue add
+		
+		
+		start := time.Now()
+		ctx, _ := context.WithTimeout(context.Background(), time.Minute*5)
+		//issue := time.Now()
+		var nm = []string{"http://"+new_member+":2380"}
+		if _, err := addCli.MemberAdd(ctx, nm, 0); err != nil {
+			panic(fmt.Sprintf("add failed: %v", err))
+		}
+		log.Print(time.Since(start))
+		close(addDoneCh)
+		close(stopCh)
+		addCli.Close()
+
+		host := new_member+":22"
+		
+		user := "ubuntu"
+	
+		var err error
+		var signer ssh.Signer
+
+		signer, err = ssh.ParsePrivateKey(pKey)
+		if err != nil {
+			fmt.Println(err.Error())
+		}
+
+		var hostkeyCallback ssh.HostKeyCallback
+		hostkeyCallback, err = knownhosts.New("/home/ubuntu/.ssh/known_hosts")
+		if err != nil {
+			fmt.Println(err.Error())
+		}
+
+		conf := &ssh.ClientConfig{
+			User:            user,
+			HostKeyCallback: hostkeyCallback,
+			Auth: []ssh.AuthMethod{
+				ssh.Password("joshuakang"),
+				ssh.PublicKeys(signer),
+			},
+		}
+
+		var conn *ssh.Client
+
+		conn, err = ssh.Dial("tcp", host, conf)
+		if err != nil {
+			fmt.Println(err.Error())
+		}
+		 
+
+		session, err := conn.NewSession()
+		if err != nil {
+			fmt.Print(err)
+		}
+
+		
+		err = session.Run(cmd_list[i])
+		fmt.Print(err)
+		conn.Close()
+		session.Close()
+		fmt.Print("done")
+		fmt.Print(i)
 	}
-*/
-	// after add
-	log.Print(<-time.After(time.Duration(cfg.After) * time.Second))
-	close(stopCh)
-	addCli.Close()
-
-	log.Printf("collect results...")
-	log.Print(issue)
 }
 func getAddMemberList(clusters [][]uint64) []string {
-	var clrs = []string{"http://192.168.0.101:2380", "http://192.168.0.99:2380", "http://192.168.0.65:2380", "http://192.168.0.181:2380", "http://192.168.0.81:2380"}
-	//var clrs = []string{"http://192.168.0.101:2380"}
+	//var clrs = []string{"http://192.168.0.101:2380", "http://192.168.0.99:2380", "http://192.168.0.65:2380", "http://192.168.0.181:2380", "http://192.168.0.81:2380"}
+	var clrs = []string{"http://192.168.0.101:2380"}
 	//var clrs = []string{"http://192.168.0.99:2380"}
 	for _, clr := range clusters {
 		mems := make([]etcdserverpb.Member, 0)

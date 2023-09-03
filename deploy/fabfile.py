@@ -5,7 +5,7 @@ from invoke import UnexpectedExit, run
 
 #PASSWORD = os.environ['KHOURY_PASSWORD']
 #SSH_KEY_PATH = '~/.ssh/id_rsa'
-SSH_KEY_PATH = '/home/ubuntu/.ssh/etcd_server'
+SSH_KEY_PATH = '/home/ubuntu/.ssh/id_rsa'
 
 REMOTE_ETCD_DIR = '~/etcd'
 REMOTE_SERVER_DIR = REMOTE_ETCD_DIR + '/server'
@@ -169,7 +169,7 @@ def run_cmd(ip, cmd):
     if ip == LOCAL_HOST:
         run(cmd, asynchronous=True)
     else:
-        with Connection(host=ip, connect_kwargs={'key_filename': SSH_KEY_PATH}) as conn:
+        with Connection(host=ip, user='jk', connect_kwargs={'key_filename': SSH_KEY_PATH}) as conn:
             try:
                 print(cmd)
                 conn.run(cmd, asynchronous=True)

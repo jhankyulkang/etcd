@@ -1759,9 +1759,9 @@ func (s *EtcdServer) TransferLeadership() error {
 	}
 
 	transferee, ok := longestConnected(s.r.transport, s.cluster.VotingMemberIDs())
-	if !ok {
+	/*if !ok {
 		return ErrUnhealthy
-	}
+	}*.
 
 	tm := s.Cfg.ReqTimeout()
 	ctx, cancel := context.WithTimeout(s.ctx, tm)
@@ -1887,7 +1887,8 @@ func (s *EtcdServer) AddMember(ctx context.Context, memb membership.Member, quor
 
 func (s *EtcdServer) mayAddMember(memb membership.Member) error {
 	lg := s.Logger()
-	if !s.Cfg.StrictReconfigCheck {
+	if !s.Cfg.
+	ReconfigCheck {
 		return nil
 	}
 

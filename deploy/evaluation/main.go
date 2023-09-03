@@ -42,7 +42,7 @@ func main() {
 
 	switch cfg.Type {
 	case "add-performance":
-		addPerformance5(cfg)
+		addPerformanceLOOP(cfg)
 	default:
 		panic(fmt.Sprintf("unknown type: %v", cfg.Type))
 	}

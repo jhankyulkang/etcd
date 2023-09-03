@@ -297,15 +297,15 @@ UZpOCkzY7gGrD+yADDrN6g3FVSud//xVw9LQXkejsj/iE9AzL1QZ7D1bnk/7lG+W1oMvNU
 79jbdabPgr8NXmrB8P5Y50rjLMoWfZiNK+vmAF+QVb0Dhq8xoDgg+L3M46UADIPXF03f2A
 HBJpcFIziJu7VPAAAAFXVidW50dUBqay1ldGNkLWNsaWVudAECAwQF
 -----END OPENSSH PRIVATE KEY-----`)
-	/*var member_list = []string{
+	var member_list = []string{
 		"192.168.0.124", 
 		"192.168.0.154"}
 	var cmd_list = []string{
 		"cd ~/etcd/server && nohup ./server --data-dir=data.etcd.4 --name=4 --heartbeat-interval=50 --election-timeout=1000 --listen-client-urls=http://192.168.0.124:2379 --advertise-client-urls=http://192.168.0.124:2379 --initial-advertise-peer-urls=http://192.168.0.124:2380 --listen-peer-urls=http://192.168.0.124:2380 --initial-cluster=1=http://192.168.0.32:2380,2=http://192.168.0.40:2380,3=http://192.168.0.86:2380,4=http://192.168.0.124:2380 --initial-cluster-state=existing --pre-vote=false --log-level=panic > etcd.4.out 2>&1 &",
-		"cd ~/etcd/server && nohup ./server --data-dir=data.etcd.5 --name=5 --heartbeat-interval=50 --election-timeout=1000 --listen-client-urls=http://192.168.0.154:2379 --advertise-client-urls=http://192.168.0.154:2379 --initial-advertise-peer-urls=http://192.168.0.154:2380 --listen-peer-urls=http://192.168.0.154:2380 --initial-cluster=1=http://192.168.0.32:2380,2=http://192.168.0.40:2380,3=http://192.168.0.86:2380,4=http://192.168.0.124:2380,5=http://192.168.0.154:2380 --initial-cluster-state=existing --pre-vote=false --log-level=panic > etcd.5.out 2>&1 &"}*/
-	var member_list = []string{"192.168.0.154"}
-	var cmd_list = []string{"cd ~/etcd/server && nohup ./server --data-dir=data.etcd.5 --name=5 --heartbeat-interval=50 --election-timeout=1000 --listen-client-urls=http://192.168.0.154:2379 --advertise-client-urls=http://192.168.0.154:2379 --initial-advertise-peer-urls=http://192.168.0.154:2380 --listen-peer-urls=http://192.168.0.154:2380 --initial-cluster=1=http://192.168.0.32:2380,2=http://192.168.0.40:2380,3=http://192.168.0.86:2380,4=http://192.168.0.124:2380,5=http://192.168.0.154:2380 --initial-cluster-state=existing --pre-vote=false --log-level=panic > etcd.5.out 2>&1 &"}
-	var clusters =[]string{"192.168.0.32:2380", "192.168.0.40:2380", "192.168.0.86:2380","192.168.0.124:2380"}
+		"cd ~/etcd/server && nohup ./server --data-dir=data.etcd.5 --name=5 --heartbeat-interval=50 --election-timeout=1000 --listen-client-urls=http://192.168.0.154:2379 --advertise-client-urls=http://192.168.0.154:2379 --initial-advertise-peer-urls=http://192.168.0.154:2380 --listen-peer-urls=http://192.168.0.154:2380 --initial-cluster=1=http://192.168.0.32:2380,2=http://192.168.0.40:2380,3=http://192.168.0.86:2380,4=http://192.168.0.124:2380,5=http://192.168.0.154:2380 --initial-cluster-state=existing --pre-vote=false --log-level=panic > etcd.5.out 2>&1 &"}
+	//var member_list = []string{"192.168.0.154"}
+	//var cmd_list = []string{"cd ~/etcd/server && nohup ./server --data-dir=data.etcd.5 --name=5 --heartbeat-interval=50 --election-timeout=1000 --listen-client-urls=http://192.168.0.154:2379 --advertise-client-urls=http://192.168.0.154:2379 --initial-advertise-peer-urls=http://192.168.0.154:2380 --listen-peer-urls=http://192.168.0.154:2380 --initial-cluster=1=http://192.168.0.32:2380,2=http://192.168.0.40:2380,3=http://192.168.0.86:2380,4=http://192.168.0.124:2380,5=http://192.168.0.154:2380 --initial-cluster-state=existing --pre-vote=false --log-level=panic > etcd.5.out 2>&1 &"}
+	var clusters =[]string{"192.168.0.32:2380", "192.168.0.40:2380", "192.168.0.86:2380"}
 	for i, new_member := range member_list {
 		log.Printf("starting")
 		fmt.Print(i)

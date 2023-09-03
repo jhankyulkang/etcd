@@ -1761,7 +1761,7 @@ func (s *EtcdServer) TransferLeadership() error {
 	transferee, ok := longestConnected(s.r.transport, s.cluster.VotingMemberIDs())
 	/*if !ok {
 		return ErrUnhealthy
-	}*.
+	}*/
 
 	tm := s.Cfg.ReqTimeout()
 	ctx, cancel := context.WithTimeout(s.ctx, tm)

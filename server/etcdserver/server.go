@@ -1590,6 +1590,7 @@ func (s *EtcdServer) applyConfChangeV2(entry raftpb.Entry) (shouldStop bool) {
 		case raftpb.ConfChangeTransitionSplitLeave:
 			s.w.Trigger(splitId, nil)
 		case raftpb.ConfChangeTransitionJointLeave:
+			//log here
 			for _, change := range cc.Changes {
 				id := types.ID(change.NodeID)
 				if change.Type == raftpb.ConfChangeRemoveNode {
@@ -1887,8 +1888,7 @@ func (s *EtcdServer) AddMember(ctx context.Context, memb membership.Member, quor
 
 func (s *EtcdServer) mayAddMember(memb membership.Member) error {
 	lg := s.Logger()
-	if !s.Cfg.
-	ReconfigCheck {
+	if !s.Cfg.StrictReconfigCheck {
 		return nil
 	}
 
@@ -2109,6 +2109,7 @@ func (s *EtcdServer) JointMember(ctx context.Context, addMembs []membership.Memb
 			"applied a joint configuration change through raft",
 			zap.String("local-member-id", s.ID().String()),
 			zap.String("raft-conf-change", cc.Transition.String()),
+			zap.String("JOINT-TIME", cc.Transition.String()),
 		)
 		return resp.membs, resp.err
 

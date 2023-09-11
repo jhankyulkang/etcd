@@ -5,12 +5,12 @@ from invoke import UnexpectedExit, run
 
 #PASSWORD = os.environ['KHOURY_PASSWORD']
 #SSH_KEY_PATH = '~/.ssh/id_rsa'
-SSH_KEY_PATH = '/home/ubuntu/.ssh/id_rsa'
+SSH_KEY_PATH = '/home/jk/.ssh/server_id'
 
 REMOTE_ETCD_DIR = '~/etcd'
 REMOTE_SERVER_DIR = REMOTE_ETCD_DIR + '/server'
 
-LOCAL_ETCD_DIR = '~/go/src/etcd'
+LOCAL_ETCD_DIR = '~/go/src/etcdjk'
 LOCAL_SERVER_DIR = LOCAL_ETCD_DIR + '/server'
 
 HTTP_SCHEME = 'http://'
@@ -22,8 +22,8 @@ class EtcdConfig:
     port: int
     name: str
 
-    TickMs: int = 50
-    ElectionMs: int = 1000
+    TickMs: int = 50 #heartbeat
+    ElectionMs: int = 1000 #election-timeout 
 
     listenClientUrls: str
     advertiseClientUrls: str

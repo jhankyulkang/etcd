@@ -2595,8 +2595,10 @@ func (s *EtcdServer) apply(
 			if e.Index > s.consistIndex.ConsistentIndex() {
 				s.consistIndex.SetConsistentApplyingIndex(e.Index, e.Term)
 			}
-
+			start := time.Now()
+			s.lg.Debug("TIME TO COMMIT START", zap.String("start time", start.String()))
 			shouldStop = shouldStop || s.applyConfChangeV1(e, false)
+			s.lg.Debug("TIME TO COMMIT END", zap.String("end time", time.Since(start).String()))
 			s.setAppliedIndex(e.Index)
 			s.setTerm(e.Term)
 
@@ -2605,8 +2607,10 @@ func (s *EtcdServer) apply(
 			if e.Index > s.consistIndex.ConsistentIndex() {
 				s.consistIndex.SetConsistentApplyingIndex(e.Index, e.Term)
 			}
-
+			start := time.Now()
+			s.lg.Debug("TIME TO COMMIT START", zap.String("start time", start.String()))
 			shouldStop = shouldStop || s.applyConfChangeV2(e)
+			s.lg.Debug("TIME TO COMMIT END", zap.String("end time", time.Since(start).String()))
 			s.setAppliedIndex(e.Index)
 			s.setTerm(e.Term)
 

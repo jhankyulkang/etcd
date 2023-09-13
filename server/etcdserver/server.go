@@ -1618,7 +1618,8 @@ func (s *EtcdServer) applyConfChangeV2(entry raftpb.Entry) (shouldStop bool) {
 				s.w.Trigger(triggerId, &confChangeResponse{s.cluster.Members(), nil})
 			}
 		}
-		s.lg.Debug("commit time", zap.Duration("duration", time.Since(start)))
+		duration := time.Since(start)
+		s.lg.Debug("commit time", zap.Duration("duration", duration))
 		return
 	}
 

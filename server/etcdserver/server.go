@@ -1560,6 +1560,7 @@ func (s *EtcdServer) applyConfChangeV1(entry raftpb.Entry, unmarshallAsV2 bool) 
 }
 
 func (s *EtcdServer) applyConfChangeV2(entry raftpb.Entry) (shouldStop bool) {
+	start := time.Now()
 	var cc raftpb.ConfChangeV2
 	pbutil.MustUnmarshal(&cc, entry.Data)
 	cc.ConfTerm = entry.Term
@@ -1579,7 +1580,7 @@ func (s *EtcdServer) applyConfChangeV2(entry raftpb.Entry) (shouldStop bool) {
 
 	var confState *raftpb.ConfState
 	ccid := confChangeEntryIdentifier(entry)
-	start := time.Now()
+
 	if _, ok := s.appliedConfEntry[ccid]; ok {
 		s.lg.Debug("conf change v2 entry committed", zap.String("conf-change-entry-identifier", ccid))
 		// when committed joint leave, member should already be removed from raft,
@@ -1617,7 +1618,7 @@ func (s *EtcdServer) applyConfChangeV2(entry raftpb.Entry) (shouldStop bool) {
 				s.w.Trigger(triggerId, &confChangeResponse{s.cluster.Members(), nil})
 			}
 		}
-		s.lg.Debug("COMMIT TIME:", zap.String("time", time.Since(start).String()))
+		s.lg.Debug("COMMIT TIME:", zap.Duration("time", time.Since(start)))
 		return
 	}
 

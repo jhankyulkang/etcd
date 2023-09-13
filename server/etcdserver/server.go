@@ -1579,9 +1579,9 @@ func (s *EtcdServer) applyConfChangeV2(entry raftpb.Entry) (shouldStop bool) {
 
 	var confState *raftpb.ConfState
 	ccid := confChangeEntryIdentifier(entry)
+	start := time.Now()
 	if _, ok := s.appliedConfEntry[ccid]; ok {
 		s.lg.Debug("conf change v2 entry committed", zap.String("conf-change-entry-identifier", ccid))
-
 		// when committed joint leave, member should already be removed from raft,
 		// now delete member from etcd cluster and transport
 		switch cc.Transition {
@@ -1617,6 +1617,7 @@ func (s *EtcdServer) applyConfChangeV2(entry raftpb.Entry) (shouldStop bool) {
 				s.w.Trigger(triggerId, &confChangeResponse{s.cluster.Members(), nil})
 			}
 		}
+		s.lg.Debug("COMMIT TIME:", zap.String("time", time.Since(start).String()))
 		return
 	}
 

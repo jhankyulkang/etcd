@@ -1619,6 +1619,7 @@ func (s *EtcdServer) applyConfChangeV2(entry raftpb.Entry) (shouldStop bool) {
 			}
 		}
 		duration := time.Since(start)
+		s.lg.Debug("commit time", zap.String("duration", "duration HERE"))
 		s.lg.Debug("commit time", zap.Duration("duration", duration))
 		return
 	}

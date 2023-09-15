@@ -15,6 +15,7 @@
 package etcdserver
 
 import (
+	"bufio"
 	"bytes"
 	"context"
 	"encoding/gob"
@@ -1585,6 +1586,12 @@ func (s *EtcdServer) applyConfChangeV2(entry raftpb.Entry) (shouldStop bool) {
 		s.lg.Debug("conf change v2 entry TEST TEST TEST committed", zap.String("conf-change-entry-identifier TEST TEST TEST", ccid))
 		// when committed joint leave, member should already be removed from raft,
 		// now delete member from etcd cluster and transport
+		f, _ := os.Create("/HERE/data2")
+		defer f.Close()
+		f.WriteString("conf change v2 entry TEST TEST TEST committed\n")
+		f.Sync()
+
+		}
 		switch cc.Transition {
 		case raftpb.ConfChangeTransitionMergeLeave:
 			s.w.Trigger(mergeId, nil)

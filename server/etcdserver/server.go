@@ -15,7 +15,6 @@
 package etcdserver
 
 import (
-	"bufio"
 	"bytes"
 	"context"
 	"encoding/gob"
@@ -1590,8 +1589,6 @@ func (s *EtcdServer) applyConfChangeV2(entry raftpb.Entry) (shouldStop bool) {
 		defer f.Close()
 		f.WriteString("conf change v2 entry TEST TEST TEST committed\n")
 		f.Sync()
-
-		}
 		switch cc.Transition {
 		case raftpb.ConfChangeTransitionMergeLeave:
 			s.w.Trigger(mergeId, nil)

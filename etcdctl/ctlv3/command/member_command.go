@@ -20,7 +20,7 @@ import (
 	"go.etcd.io/etcd/api/v3/etcdserverpb"
 	"strconv"
 	"strings"
-
+	"time"
 	"github.com/spf13/cobra"
 	"go.etcd.io/etcd/client/v3"
 	"go.etcd.io/etcd/pkg/v3/cobrautl"
@@ -178,6 +178,8 @@ func NewMemberJointCommand() *cobra.Command {
 
 // memberAddCommandFunc executes the "member add" command.
 func memberAddCommandFunc(cmd *cobra.Command, args []string) {
+	start := time.Now()
+	
 	if len(args) < 1 {
 		cobrautl.ExitWithError(cobrautl.ExitBadArgs, errors.New("member name not provided"))
 	}
@@ -188,14 +190,12 @@ func memberAddCommandFunc(cmd *cobra.Command, args []string) {
 		resp *clientv3.MemberAddResponse
 		err  error
 	)
+	fmt.Println(memberPeerURLs)
 	peerURLs := strings.Split(memberPeerURLs, "+++")
-	//fmt.Print(peerURLs)
+	fmt.Println(peerURLs)
 	//conf := []string{}
-	for i, s := range args {
-		if strings.HasPrefix(strings.ToLower(s), "http") {
-			ev := fmt.Sprintf(`, did you mean --peer-urls=%s`, s)
-			cobrautl.ExitWithError(cobrautl.ExitBadArgs, errors.New(ev))
-		}
+	for i, _ := range peerURLs {
+		
 
 		memberPeerURLs := strings.Split(peerURLs[i], ",")
 
@@ -207,7 +207,7 @@ func memberAddCommandFunc(cmd *cobra.Command, args []string) {
 		if isLearner {
 			resp, err = cli.MemberAddAsLearner(ctx, memberPeerURLs, uint64(quroum))
 		} else {
-			fmt.Print(quroum)
+			fmt.Println(memberPeerURLs)
 			resp, err = cli.MemberAdd(ctx, memberPeerURLs, uint64(quroum))
 		}
 		cancel()
@@ -237,6 +237,8 @@ func memberAddCommandFunc(cmd *cobra.Command, args []string) {
 		fmt.Printf("ETCD_INITIAL_CLUSTER_STATE=\"existing\"\n")
 		//}*/
 	}
+	fmt.Println()
+	fmt.Println(time.Since(start))
 }
 
 // memberRemoveCommandFunc executes the "member remove" command.

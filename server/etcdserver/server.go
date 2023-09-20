@@ -1887,8 +1887,7 @@ func (s *EtcdServer) AddMember(ctx context.Context, memb membership.Member, quor
 
 func (s *EtcdServer) mayAddMember(memb membership.Member) error {
 	lg := s.Logger()
-	if !s.Cfg.
-	ReconfigCheck {
+	if !s.Cfg.StrictReconfigCheck {
 		return nil
 	}
 

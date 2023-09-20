@@ -1560,6 +1560,7 @@ func (s *EtcdServer) applyConfChangeV1(entry raftpb.Entry, unmarshallAsV2 bool) 
 }
 
 func (s *EtcdServer) applyConfChangeV2(entry raftpb.Entry) (shouldStop bool) {
+	start := time.Now()
 	var cc raftpb.ConfChangeV2
 	pbutil.MustUnmarshal(&cc, entry.Data)
 	cc.ConfTerm = entry.Term
@@ -1579,17 +1580,22 @@ func (s *EtcdServer) applyConfChangeV2(entry raftpb.Entry) (shouldStop bool) {
 
 	var confState *raftpb.ConfState
 	ccid := confChangeEntryIdentifier(entry)
-	if _, ok := s.appliedConfEntry[ccid]; ok {
-		s.lg.Debug("conf change v2 entry committed", zap.String("conf-change-entry-identifier", ccid))
 
+	if _, ok := s.appliedConfEntry[ccid]; ok {
+		s.lg.Debug("conf change v2 entry TEST TEST TEST committed", zap.String("conf-change-entry-identifier TEST TEST TEST", ccid))
 		// when committed joint leave, member should already be removed from raft,
 		// now delete member from etcd cluster and transport
+		f, _ := os.Create("/HERE/data2")
+		defer f.Close()
+		f.WriteString("conf change v2 entry TEST TEST TEST committed\n")
+		f.Sync()
 		switch cc.Transition {
 		case raftpb.ConfChangeTransitionMergeLeave:
 			s.w.Trigger(mergeId, nil)
 		case raftpb.ConfChangeTransitionSplitLeave:
 			s.w.Trigger(splitId, nil)
 		case raftpb.ConfChangeTransitionJointLeave:
+			//log here
 			for _, change := range cc.Changes {
 				id := types.ID(change.NodeID)
 				if change.Type == raftpb.ConfChangeRemoveNode {
@@ -1616,6 +1622,9 @@ func (s *EtcdServer) applyConfChangeV2(entry raftpb.Entry) (shouldStop bool) {
 				s.w.Trigger(triggerId, &confChangeResponse{s.cluster.Members(), nil})
 			}
 		}
+		duration := time.Since(start)
+		s.lg.Debug("commit time", zap.String("duration", "duration HERE"))
+		s.lg.Debug("commit time", zap.Duration("duration", duration))
 		return
 	}
 
@@ -2108,6 +2117,7 @@ func (s *EtcdServer) JointMember(ctx context.Context, addMembs []membership.Memb
 			"applied a joint configuration change through raft",
 			zap.String("local-member-id", s.ID().String()),
 			zap.String("raft-conf-change", cc.Transition.String()),
+			zap.String("JOINT-TIME", cc.Transition.String()),
 		)
 		return resp.membs, resp.err
 
@@ -2593,8 +2603,10 @@ func (s *EtcdServer) apply(
 			if e.Index > s.consistIndex.ConsistentIndex() {
 				s.consistIndex.SetConsistentApplyingIndex(e.Index, e.Term)
 			}
-
+			start := time.Now()
+			s.lg.Debug("TIME TO COMMIT START", zap.String("start time", start.String()))
 			shouldStop = shouldStop || s.applyConfChangeV1(e, false)
+			s.lg.Debug("TIME TO COMMIT END", zap.String("end time", time.Since(start).String()))
 			s.setAppliedIndex(e.Index)
 			s.setTerm(e.Term)
 
@@ -2603,8 +2615,10 @@ func (s *EtcdServer) apply(
 			if e.Index > s.consistIndex.ConsistentIndex() {
 				s.consistIndex.SetConsistentApplyingIndex(e.Index, e.Term)
 			}
-
+			start := time.Now()
+			s.lg.Debug("TIME TO COMMIT START", zap.String("start time", start.String()))
 			shouldStop = shouldStop || s.applyConfChangeV2(e)
+			s.lg.Debug("TIME TO COMMIT END", zap.String("end time", time.Since(start).String()))
 			s.setAppliedIndex(e.Index)
 			s.setTerm(e.Term)
 
